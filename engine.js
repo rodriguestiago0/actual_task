@@ -9,7 +9,7 @@ async function fixPayees() {
     payees = await getPayees(actual, appConfig.PAYEE_REGEX_MATCH)
     updatedPayee = {}
     payees.forEach(payee => {
-        let name = payee.name.replace(new RegExp(appConfig.PAYEE_REGEX_MATCH), "");
+        let name = payee.name.replace(new RegExp(appConfig.PAYEE_REGEX_MATCH, "gis"), "");
         if (name != payee.name )
         {
             updatedPayee[payee.id] = name.trim();
