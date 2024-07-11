@@ -4,11 +4,14 @@ config();
 
 
 const INTEREST_RATE = process.env.INTEREST_RATE || "";
-const MORATEGE_PAYEE_ID = process.env.MORATEGE_PAYEE_ID || "";
-const MORATEGE_PAYEE_NAME = process.env.MORATEGE_PAYEE_NAME || "";
-const MORATEGE_ACCOUNT_ID = process.env.MORATEGE_ACCOUNT_ID || "";
+const MORTGAGE_PAYEE_ID = process.env.MORTGAGE_PAYEE_ID || "";
+const MORTGAGE_PAYEE_NAME = process.env.MORTGAGE_PAYEE_NAME || "";
+const MORTGAGE_ACCOUNT_ID = process.env.MORTGAGE_ACCOUNT_ID || "";
 const MAIN_ACCOUNT_ID = process.env.MAIN_ACCOUNT_ID || "";
-const MORATEGE_CATEGORY_ID = process.env.MORATEGE_CATEGORY_ID || "";
+const MORTGAGE_CATEGORY_ID = process.env.MORTGAGE_CATEGORY_ID || "";
+
+const ENABLE_INTEREST_CALCULATION= process.env.ENABLE_INTEREST_CALCULATION || false;
+const ENABLE_PAYEE_RENAME = process.env.ENABLE_PAYEE_RENAME || false;
 
 const PAYEE_REGEX_MATCH = process.env.PAYEE_REGEX_MATCH || "";
 
@@ -33,12 +36,14 @@ function getAppConfigFromEnv() {
         ACTUAL_SYNC_ID,
         CRON_EXPRESSION,
         PAYEE_REGEX_MATCH,
-        MORATEGE_PAYEE_ID,
-        MORATEGE_PAYEE_NAME,
-        MORATEGE_ACCOUNT_ID,
+        MORTGAGE_PAYEE_ID,
+        MORTGAGE_PAYEE_NAME,
+        MORTGAGE_ACCOUNT_ID,
         MAIN_ACCOUNT_ID,
         INTEREST_RATE,
-        MORATEGE_CATEGORY_ID,
+        ENABLE_INTEREST_CALCULATION,
+        ENABLE_PAYEE_RENAME,
+        MORTGAGE_CATEGORY_ID,
     }
 
     // Assert that all required environment variables are set

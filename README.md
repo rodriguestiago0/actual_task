@@ -1,4 +1,17 @@
 # Actual Tasks
+This is a project that contains two tasks. You can trigger them manually or setup a docker container that will run them periodically.
+
+## Tasks:
+
+### Fix payee name based on a regex expression:
+**Input**: `Compra 1234 Continente Porto Contactless`
+
+**Regex**: `Compra [0-9]{4}|Contactless|Compra:|[0-9]{4}-[0-9]{0,3}`
+
+**Output**: `Continente Porto`
+
+### Create a transaction that deducts your payment mortgage
+To configure the correct interest rate is the % multiple by 1000
 
 ## Setup
 

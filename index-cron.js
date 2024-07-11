@@ -14,8 +14,12 @@ const interval = parser.parseExpression(cronExpression);
 console.info('Next run:', interval.next().toISOString());
 
 cron.schedule(cronExpression, async () => {
-    await fixPayees();
-    await calculateMortage();
+    if (appConfig.ENABLE_INTEREST_CALCULATION) {
+        await calculateMortage();
+    }
+    if (appConfig.ENABLE_PAYEE_RENAME) {
+        await fixPayees();
+    }
     console.info('Next run:', interval.next().toISOString());
 });
 

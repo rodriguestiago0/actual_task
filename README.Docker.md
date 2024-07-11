@@ -15,14 +15,16 @@ services:
       - PGID=100
       - TZ=Europe/Lisbon
       - INTEREST_RATE=
-      - MORATEGE_PAYEE_ID=
-      - MORATEGE_ACCOUNT_ID=
+      - MORTGAGE_PAYEE_ID=
+      - MORTGAGE_ACCOUNT_ID=
       - MAIN_ACCOUNT_ID=
-      - MORATEGE_CATEGORY_ID=
+      - MORTGAGE_CATEGORY_ID=
       - PAYEE_REGEX_MATCH=
       - ACTUAL_SERVER_URL= 
       - ACTUAL_SERVER_PASSWORD=
       - ACTUAL_SYNC_ID=
+      - ENABLE_INTEREST_CALCULATION=true
+      - ENABLE_PAYEE_RENAME=true
       - CRON_EXPRESSION= # default value is "0 */4 * * *"
     restart: unless-stopped
 ```
@@ -30,10 +32,12 @@ services:
 ```
 docker run -d --name actualtasks \
     - e 'INTEREST_RATE=' \
-    - e 'MORATEGE_PAYEE_ID=' \
+    - e 'MORTGAGE_PAYEE_ID=' \
     - e 'MAIN_ACCOUNT_ID=' \
-    - e 'MORATEGE_ACCOUNT_ID=' \
-    - e 'MORATEGE_CATEGORY_ID=' \
+    - e 'MORTGAGE_ACCOUNT_ID=' \
+    - e 'MORTGAGE_CATEGORY_ID=' \
+    - e ENABLE_INTEREST_CALCULATION=true \
+    - e ENABLE_PAYEE_RENAME=true \
     - e 'PAYEE_REGEX_MATCH=' \
     - e 'ACTUAL_SERVER_URL= ' \
     - e 'ACTUAL_SERVER_PASSWORD=' \

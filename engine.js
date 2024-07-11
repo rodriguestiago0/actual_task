@@ -34,20 +34,20 @@ function formatDate(date) {
 
 async function calculateMortage() {
     const actual = await initialize(config);
-    lastPaymentTransaction = await getLastTransaction(actual, appConfig.MAIN_ACCOUNT_ID, appConfig.MORATEGE_PAYEE_ID);
-    lastPrincipalTransaction = await getLastTransaction(actual, appConfig.MORATEGE_ACCOUNT_ID, appConfig.MORATEGE_PAYEE_ID);
+    lastPaymentTransaction = await getLastTransaction(actual, appConfig.MAIN_ACCOUNT_ID, appConfig.MORTGAGE_PAYEE_ID);
+    lastPrincipalTransaction = await getLastTransaction(actual, appConfig.MORTGAGE_ACCOUNT_ID, appConfig.MORTGAGE_PAYEE_ID);
 
     if (new Date(lastPaymentTransaction.date).getMonth() != new Date(lastPrincipalTransaction.date).getMonth())
     {
-        balance = await getBalance(actual, appConfig.MORATEGE_ACCOUNT_ID);
+        balance = await getBalance(actual, appConfig.MORTGAGE_ACCOUNT_ID);
         console.log(lastPaymentTransaction, lastPrincipalTransaction, balance)
         payment = Math.round(balance * appConfig.INTEREST_RATE / 12 / 100000 * -1);
         principal = (lastPaymentTransaction.amount + payment) * -1;
-        await importTransactions(actual, appConfig.MORATEGE_ACCOUNT_ID,[
+        await importTransactions(actual, appConfig.MORTGAGE_ACCOUNT_ID,[
             {
                 date:   formatDate(new Date()),
                 amount: principal,
-                payee_name: appConfig.MORATEGE_PAYEE_NAME,
+                payee_name: appConfig.MORTGAGE_PAYEE_NAME,
             },
         ])
     }
