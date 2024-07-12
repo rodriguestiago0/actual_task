@@ -10,6 +10,11 @@ This is a project that contains two tasks. You can trigger them manually or setu
 
 **Output**: `Continente Porto`
 
+This task will also remove extra space in the payee name.
+**Input**: `Continente       Porto` 
+
+**Output**:  `Continente Porto` 
+
 ### Create a transaction that deducts your payment mortgage
 To configure the correct interest rate is the % multiple by 1000
 
