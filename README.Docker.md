@@ -18,7 +18,6 @@ services:
       - MORTGAGE_PAYEE_ID=
       - MORTGAGE_ACCOUNT_ID=
       - MAIN_ACCOUNT_ID=
-      - MORTGAGE_CATEGORY_ID=
       - PAYEE_REGEX_MATCH=
       - ACTUAL_SERVER_URL= 
       - ACTUAL_SERVER_PASSWORD=
@@ -35,7 +34,6 @@ docker run -d --name actualtasks \
     - e 'MORTGAGE_PAYEE_ID=' \
     - e 'MAIN_ACCOUNT_ID=' \
     - e 'MORTGAGE_ACCOUNT_ID=' \
-    - e 'MORTGAGE_CATEGORY_ID=' \
     - e ENABLE_INTEREST_CALCULATION=true \
     - e ENABLE_PAYEE_RENAME=true \
     - e 'PAYEE_REGEX_MATCH=' \
