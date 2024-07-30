@@ -59,10 +59,14 @@ async function calculateMortage() {
     await finalize(actual);
 }
 
+async function ghostfolioSync() {
+    const actual = await initialize(config);
+}
 
 
 module.exports = {
     fixPayees,
     calculateMortage,
+    ghostfolioSync
 }
 

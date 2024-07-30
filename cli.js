@@ -1,8 +1,7 @@
-const { getAppConfigFromEnv, getConf } = require("./config.js");
-const { init, fixPayees, calculateMortage } = require("./engine.js");
+const { getConf } = require("./config.js");
+const { fixPayees, calculateMortage, ghostfolioSync } = require("./engine.js");
 
 let config;
-const appConfig = getAppConfigFromEnv()
 
 const printSyncedAccounts = () => {
     const actualData = config.get("actualSync");
@@ -40,6 +39,8 @@ module.exports = async (command, flags) => {
         await fixPayees();
     } else if (command === "calculate-mortage") {
         await calculateMortage();
+    }  else if (command === "ghostfolio-sync") {
+        await ghostfolioSync();
     } else if (command === "ls") {
         printSyncedAccounts();
     }
