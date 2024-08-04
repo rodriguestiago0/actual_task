@@ -18,6 +18,9 @@ This task will also remove extra space in the payee name.
 ### Create a transaction that deducts your payment mortgage
 To configure the correct interest rate is the % multiple by 1000
 
+### Sync ghostfolio account with Actual Budget account
+Create a new transaction to keep ghostfolio account balance and actual account balance in sync
+
 ## Setup
 
 -   Clone this repo!
@@ -41,6 +44,7 @@ This is a repository where I will be adding tasks to run periodically. For now b
     config              Print the location of actualplaid the config file
     fix-payees          Will apply the regex and replace for empty string
     calculate-mortage   Will check the mortage balance and calculate the principal payment based on your montly payment
+    ghostfolio-sync     Will check ghost balance account and actual account balances and create a transaction in actual to sync both balances.
 
   Options for all commands
     --user, -u       Specify the user to load configs for
