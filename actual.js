@@ -112,11 +112,13 @@ async function importTransactions(actualInstance, accountId, transactions) {
     console.info("Actual logs: ", actualResult);
 }
 
-async function getBalance(actualInstance, accountId) {
-    const balance = await actualInstance.runQuery(q('transactions')
-        .filter({ account: accountId })
-        .calculate({ $sum: '$amount' }),)
-    return balance.data;
+/**
+ * @param {typeof actual} actualInstance 
+ * @param {*} accountId 
+ */
+async function getAccountBalance(actualInstance, accountId) {
+    const balance = await actualInstance.getAccountBalance(accountId)
+    return balance;
 }
 
 /**
@@ -132,7 +134,7 @@ module.exports = {
     initialize,
     listAccounts,
     importTransactions,
-    getBalance,
+    getAccountBalance,
     getPayees,
     updatePayees,
     getLastTransaction,

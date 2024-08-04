@@ -1,5 +1,6 @@
 const { getAppConfigFromEnv, getConf } = require("./config");
-const { initialize, getPayees, updatePayees, getLastTransaction, finalize, listAccounts, getBalance, importTransactions} = require("./actual.js");
+const { initialize, getPayees, updatePayees, getLastTransaction, finalize, getAccountBalance, importTransactions} = require("./actual.js");
+const ghostfolio = require("./ghostfolio.js");
 
 const appConfig = getAppConfigFromEnv();
 config = getConf("default")
@@ -61,12 +62,27 @@ async function calculateMortage() {
 
 async function ghostfolioSync() {
     const actual = await initialize(config);
+    for (const [ghostfolioAccount, actualAccount] of Object.entries(appConfig.GHOSTFOLIO_ACCOUNT_MAPPING)) {
+        actualBalance = await getAccountBalance(actual, actualAccount);
+        ghostfolioBalance = await ghostfolio.getAccountBalance(ghostfolioAccount);
+        account = appConfig.GHOSTFOLIO_ACTUAL_PAYEE_NAME_MAPPING[ghostfolioAccount];
+        if (actualBalance != ghostfolioBalance) {
+            await importTransactions(actual, actualAccount, [
+                {
+                    date:   formatDate(new Date()),
+                    amount: ghostfolioBalance-actualBalance,
+                    payee_name: account,
+                }
+            ])
+        } else {
+            console.log("No difference found for account " + account);
+        }
+    }
+    await finalize(actual);
 }
-
 
 module.exports = {
     fixPayees,
     calculateMortage,
     ghostfolioSync
 }
-

@@ -12,13 +12,15 @@ const MAIN_ACCOUNT_ID = process.env.MAIN_ACCOUNT_ID || "";
 const ENABLE_INTEREST_CALCULATION= process.env.ENABLE_INTEREST_CALCULATION || false;
 const ENABLE_PAYEE_RENAME = process.env.ENABLE_PAYEE_RENAME || false;
 const ENABLE_GHSOTFOLIO_SYNC = process.env.ENABLE_GHOSTFOLIO_SYNC || false;
+const GHOSTFOLIO_SERVER_URL = process.env.GHOSTFOLIO_SERVER_URL || "";
+const GHOSTFOLIO_TOKEN = process.env.GHOSTFOLIO_TOKEN || "";
 
 const PAYEE_REGEX_MATCH = process.env.PAYEE_REGEX_MATCH || "";
 
 const ACTUAL_SERVER_URL = process.env.ACTUAL_SERVER_URL || "";
 const ACTUAL_SERVER_PASSWORD = process.env.ACTUAL_SERVER_PASSWORD || "";
 
-const CRON_EXPRESSION = process.env.CRON_EXPRESSION || "";
+const CRON_EXPRESSION = process.env.CRON_EXPRESSION || "0 */4 * * *";
 const ACTUAL_SYNC_ID = process.env.ACTUAL_SYNC_ID || "";
 
 function validateEnv(variables){
@@ -75,7 +77,7 @@ function getAppConfigFromEnv() {
         }
 
         GHOSTFOLIO_ACCOUNT_MAPPING[ghostfolioAccount] = actualAccount;
-        GHOSTFOLIO_ACCOUNT_MAPPING[ghostfolioAccount] = ghotfolioPayeeName;
+        GHOSTFOLIO_ACTUAL_PAYEE_NAME_MAPPING[ghostfolioAccount] = ghotfolioPayeeName;
         var i = 1;
         while(true){
             ghostfolioAccount = process.env[`GHOSTFOLIO_ACCOUNT_${i}`] || ""
@@ -86,8 +88,13 @@ function getAppConfigFromEnv() {
             }
             i++;
             GHOSTFOLIO_ACCOUNT_MAPPING[ghostfolioAccount] = actualAccount;
-            GHOSTFOLIO_ACCOUNT_MAPPING[ghostfolioAccount] = ghotfolioPayeeName;
+            GHOSTFOLIO_ACTUAL_PAYEE_NAME_MAPPING[ghostfolioAccount] = ghotfolioPayeeName;
         }
+
+        validateEnv({
+            GHOSTFOLIO_SERVER_URL,
+            GHOSTFOLIO_TOKEN,
+        })
     }
 
     const appConfig = {
@@ -106,6 +113,8 @@ function getAppConfigFromEnv() {
         ENABLE_GHSOTFOLIO_SYNC,
         GHOSTFOLIO_ACCOUNT_MAPPING,
         GHOSTFOLIO_ACTUAL_PAYEE_NAME_MAPPING,
+        GHOSTFOLIO_SERVER_URL,
+        GHOSTFOLIO_TOKEN,
     }
 
     return appConfig
