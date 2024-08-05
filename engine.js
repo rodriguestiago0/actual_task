@@ -1,6 +1,7 @@
 const { getAppConfigFromEnv, getConf } = require("./config");
 const { initialize, getPayees, updatePayees, getLastTransaction, finalize, getAccountBalance, importTransactions} = require("./actual.js");
 const ghostfolio = require("./ghostfolio.js");
+const { transaction } = require("@actual-app/api/@types/loot-core/server/db/index.js");
 
 const appConfig = getAppConfigFromEnv();
 config = getConf("default")
@@ -43,7 +44,7 @@ async function calculateMortage() {
     lastPaymentTransaction = await getLastTransaction(actual, appConfig.MAIN_ACCOUNT_ID, appConfig.MORTGAGE_PAYEE_ID);
     lastPrincipalTransaction = await getLastTransaction(actual, appConfig.MORTGAGE_ACCOUNT_ID, appConfig.MORTGAGE_PAYEE_ID);
 
-    if (new Date(lastPaymentTransaction.date).getMonth() != new Date(lastPrincipalTransaction.date).getMonth())
+    if (lastPrincipalTransaction == null || new Date(lastPaymentTransaction.date).getMonth() != new Date(lastPrincipalTransaction.date).getMonth())
     {
         balance = await getBalance(actual, appConfig.MORTGAGE_ACCOUNT_ID);
         console.log(lastPaymentTransaction, lastPrincipalTransaction, balance)

@@ -71,7 +71,7 @@ async function updatePayees(actualInstance, payeesToUpdate) {
  * @param {typeof actual} actualInstance 
  * @param {*} accountId 
  */
-async function getLastTransaction(actualInstance, accountId, payeeID, categoryID) {
+async function getLastTransaction(actualInstance, accountId, payeeID) {
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() -1);
 
@@ -81,12 +81,6 @@ async function getLastTransaction(actualInstance, accountId, payeeID, categoryID
     if (payeeID != undefined && payeeID != null && payeeID != "") {
         filteredTransactions = filteredTransactions.filter(transaction => {
             return transaction.payee == payeeID
-        })
-    }
-
-    if(categoryID != undefined && payeeID != null && categoryID != "") {
-        filteredTransactions = filteredTransactions.filter(transaction => {
-            return transaction.categoryID == categoryID
         })
     }
 
