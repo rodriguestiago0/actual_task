@@ -26,8 +26,6 @@ Create a new transaction to keep ghostfolio account balance and actual account b
 -   Clone this repo!
 -   Install dependencies: `npm ci`
 -   Copy `.sample.env` to `.env` and fill in the blanks
--   Run `check`: `node index.js check`, this will check the balance between your Actual Budget account and the accounts setup on tink
--   Run `import`: `node index.js import`, this will import all transactions to Actual
 
 ## Some things worth noting
 
