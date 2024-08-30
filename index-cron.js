@@ -1,4 +1,4 @@
-const { fixPayees, calculateMortage, ghostfolioSync } = require("./engine.js");
+const { fixPayees, calculateMortage, ghostfolioSync, holdAmoutForNextMonth } = require("./engine.js");
 var cron = require('node-cron');
 const parser = require('cron-parser');
 const { getAppConfigFromEnv } = require("./config");
@@ -24,6 +24,10 @@ cron.schedule(cronExpression, async () => {
 
     if (appConfig.ENABLE_GHSOTFOLIO_SYNC) {
         await ghostfolioSync();
+    }
+
+    if (appConfig.ENABLE_HOLD_INCOME_FOR_NEXT_MONTH){
+        await holdAmoutForNextMonth();
     }
     console.info('Next run:', interval.next().toISOString());
 });

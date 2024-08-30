@@ -116,6 +116,31 @@ async function getAccountBalance(actualInstance, accountId) {
 }
 
 /**
+ * @param {typeof actual} actualInstance 
+ * @param {*} month 
+ */
+async function getHoldBalance(actualInstance, month) {
+    const budget = await actualInstance.getBudgetMonth(month)
+    received = 0
+    for (const [_, categoryGroup] of Object.entries(budget.categoryGroups)) {
+        if(categoryGroup.is_income) {
+            received += categoryGroup.received
+        }
+    }
+    return received;
+}
+
+
+
+/**
+ * @param {typeof actual} actualInstance 
+ * @param {*} month 
+ */
+async function holdBudgetForNextMonth(actualInstance, month, amount) {
+    await actualInstance.resetBudgetHold(month);
+    actualInstance.holdBudgetForNextMonth(month, amount);
+}
+/**
  * 
  * @param {typeof actual} actualInstance 
  */
@@ -132,5 +157,7 @@ module.exports = {
     getPayees,
     updatePayees,
     getLastTransaction,
+    getHoldBalance,
+    holdBudgetForNextMonth,
     finalize
 }

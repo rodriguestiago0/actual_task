@@ -23,6 +23,8 @@ const ACTUAL_SERVER_PASSWORD = process.env.ACTUAL_SERVER_PASSWORD || "";
 const CRON_EXPRESSION = process.env.CRON_EXPRESSION || "0 */4 * * *";
 const ACTUAL_SYNC_ID = process.env.ACTUAL_SYNC_ID || "";
 
+const ENABLE_HOLD_INCOME_FOR_NEXT_MONTH = process.env.ENABLE_HOLD_INCOME_FOR_NEXT_MONTH || false;
+
 function validateEnv(variables){
     // Assert that all required environment variables are set
     Object.entries(variables).forEach(([key, value]) => {

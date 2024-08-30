@@ -1,5 +1,5 @@
 const { getConf } = require("./config.js");
-const { fixPayees, calculateMortage, ghostfolioSync } = require("./engine.js");
+const { fixPayees, calculateMortage, ghostfolioSync, holdAmoutForNextMonth } = require("./engine.js");
 
 let config;
 
@@ -41,7 +41,10 @@ module.exports = async (command, flags) => {
         await calculateMortage();
     }  else if (command === "ghostfolio-sync") {
         await ghostfolioSync();
-    } else if (command === "ls") {
+    } else if (command === "holdAmoutForNextMonth")  {
+        await holdAmoutForNextMonth();
+    }
+    else if (command === "ls") {
         printSyncedAccounts();
     }
     process.exit();

@@ -1,5 +1,5 @@
 const { getAppConfigFromEnv, getConf } = require("./config");
-const { initialize, getPayees, updatePayees, getLastTransaction, finalize, getAccountBalance, importTransactions} = require("./actual.js");
+const { initialize, getPayees, updatePayees, getLastTransaction, finalize, getAccountBalance, importTransactions, getHoldBalance, holdBudgetForNextMonth} = require("./actual.js");
 const ghostfolio = require("./ghostfolio.js");
 
 const appConfig = getAppConfigFromEnv();
@@ -81,8 +81,24 @@ async function ghostfolioSync() {
     await finalize(actual);
 }
 
+function zeroPad(num, places) {
+    var zero = places - num.toString().length + 1;
+    return Array(+(zero > 0 && zero)).join("0") + num;
+  }
+
+async function holdAmoutForNextMonth() {
+    const date = new Date();
+    const year = date.getFullYear();
+    d = year + '-' + zeroPad(date.getMonth() + 1, 2)
+    const actual = await initialize(config);
+    amount = await getHoldBalance(actual, d);
+    await holdBudgetForNextMonth(actual, d, amount)
+    await finalize(actual);
+}
+
 module.exports = {
     fixPayees,
     calculateMortage,
-    ghostfolioSync
+    ghostfolioSync,
+    holdAmoutForNextMonth
 }
