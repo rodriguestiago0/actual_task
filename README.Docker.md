@@ -31,6 +31,7 @@ services:
       - ENABLE_GHOSTFOLIO_SYNC=true
       - GHOSTFOLIO_SERVER_URL=
       - GHOSTFOLIO_TOKEN=
+      - ENABLE_HOLD_INCOME_FOR_NEXT_MONTH=true
     restart: unless-stopped
 ```
 
@@ -50,8 +51,9 @@ docker run -d --name actualtasks \
     - e 'GHOSTFOLIO_ACCOUNT'= \
     - e 'GHOSTFOLIO_ACTUAL_ACCOUNT'= \
     - e 'GHOSTFOLIO_ACTUAL_PAYEE_NAME'= \
-    - e ENABLE_GHOSTFOLIO_SYNC='tru'e \
+    - e 'ENABLE_GHOSTFOLIO_SYNC'=true \
     - e 'GHOSTFOLIO_SERVER_URL'= \
     - e 'GHOSTFOLIO_TOKEN'= \
+    - e 'ENABLE_HOLD_INCOME_FOR_NEXT_MONTH'=true \
   --restart=on-failure rodriguestiago0/actualtasks:latest
 ```

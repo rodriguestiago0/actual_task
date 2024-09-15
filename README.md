@@ -21,6 +21,9 @@ To configure the correct interest rate is the % multiple by 1000
 ### Sync ghostfolio account with Actual Budget account
 Create a new transaction to keep ghostfolio account balance and actual account balance in sync
 
+### Hold income category transaction amount for next month
+Sum all income transaction and hold it to next month budget 
+
 ## Setup
 
 -   Clone this repo!
