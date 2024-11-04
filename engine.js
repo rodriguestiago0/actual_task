@@ -98,6 +98,7 @@ async function holdAmoutForNextMonth() {
 async function bankSync() {
     const actual = await initialize(config);
     await actual.runBankSync()
+    await finalize(actual);
 }
 
 module.exports = {
