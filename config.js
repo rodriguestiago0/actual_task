@@ -26,6 +26,9 @@ const ACTUAL_SYNC_ID = process.env.ACTUAL_SYNC_ID || "";
 const ENABLE_HOLD_INCOME_FOR_NEXT_MONTH = process.env.ENABLE_HOLD_INCOME_FOR_NEXT_MONTH || false;
 
 
+const ENABLE_BANK_SYNC = process.env.ENABLE_BANK_SYNC || false;
+
+
 function validateEnv(variables){
     // Assert that all required environment variables are set
     Object.entries(variables).forEach(([key, value]) => {
@@ -118,7 +121,8 @@ function getAppConfigFromEnv() {
         GHOSTFOLIO_ACTUAL_PAYEE_NAME_MAPPING,
         GHOSTFOLIO_SERVER_URL,
         GHOSTFOLIO_TOKEN,
-        ENABLE_HOLD_INCOME_FOR_NEXT_MONTH
+        ENABLE_HOLD_INCOME_FOR_NEXT_MONTH,
+        ENABLE_BANK_SYNC
     }
 
     return appConfig

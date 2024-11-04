@@ -95,10 +95,15 @@ async function holdAmoutForNextMonth() {
     await holdBudgetForNextMonth(actual, d, amount)
     await finalize(actual);
 }
+async function bankSync() {
+    const actual = await initialize(config);
+    await actual.runBankSync()
+}
 
 module.exports = {
     fixPayees,
     calculateMortage,
     ghostfolioSync,
-    holdAmoutForNextMonth
+    holdAmoutForNextMonth,
+    bankSync
 }
