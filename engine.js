@@ -92,7 +92,9 @@ async function holdAmoutForNextMonth() {
     d = year + '-' + zeroPad(date.getMonth() + 1, 2)
     const actual = await initialize(config);
     amount = await getHoldBalance(actual, d);
-    await holdBudgetForNextMonth(actual, d, amount)
+    if (amount > 0) {
+        await holdBudgetForNextMonth(actual, d, amount)
+    }
     await finalize(actual);
 }
 async function bankSync() {
