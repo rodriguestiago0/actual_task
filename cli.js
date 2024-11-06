@@ -41,7 +41,7 @@ module.exports = async (command, flags) => {
         await calculateMortage();
     }  else if (command === "ghostfolio-sync") {
         await ghostfolioSync();
-    } else if (command === "holdAmoutForNextMonth")  {
+    } else if (command === "hold-amout-for-next-month")  {
         await holdAmoutForNextMonth();
     } else if (command === "bank-sync")  {
         await bankSync();
