@@ -3,22 +3,6 @@ const { fixPayees, calculateMortage, ghostfolioSync, holdAmoutForNextMonth, bank
 
 let config;
 
-const printSyncedAccounts = () => {
-    const actualData = config.get("actualSync");
-    if (!actualData) {
-        console.error("No syncing data found");
-        return;
-    }
-
-    console.info("The following accounts are linked to Actual:");
-    console.table(
-        Object.values(actualData).map((account) => ({
-            "Actual Account": account.actualName,
-            "Actual Account Id": account.actualAccountId,
-        }))
-    );
-};
-
 /**
  * 
  * @param {string} command 
@@ -45,9 +29,6 @@ module.exports = async (command, flags) => {
         await holdAmoutForNextMonth();
     } else if (command === "bank-sync")  {
         await bankSync();
-    }
-    else if (command === "ls") {
-        printSyncedAccounts();
     }
     process.exit();
 };

@@ -5,19 +5,21 @@ const myedenred = require("./cli.js");
 const cli = meow(
     `
   Usage
-    $ myedenred <command> <flags>
+    $ actualtasks <command> <flags>
 
   Commands & Options
-    ls               List currently syncing accounts
-    import           Sync bank accounts to Actual Budget
-    config           Print the location of myedenredactual the config file
-    --version        Print the version of myedenredactual being used
+    config                       Print the location of actualtasks the config file
+    fix-payees                   Apply the regex configured and remove it
+    calculate-mortage            Calculate the principal from the mortage payment
+    ghostfolio-sync              Sync Ghostfolio balance accounts with actual accounts
+    hold-amout-for-next-month    Call sync method
+
 
   Options for all commands
     --user, -u       Specify the user to load configs for 
 
   Examples
-    $ myedenred import
+    $ actualtasks config
 `,
     {
         flags: {

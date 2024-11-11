@@ -8,10 +8,6 @@ const MORTGAGE_PAYEE_ID = process.env.MORTGAGE_PAYEE_ID || "";
 const MORTGAGE_PAYEE_NAME = process.env.MORTGAGE_PAYEE_NAME || "";
 const MORTGAGE_ACCOUNT_ID = process.env.MORTGAGE_ACCOUNT_ID || "";
 const MAIN_ACCOUNT_ID = process.env.MAIN_ACCOUNT_ID || "";
-
-const ENABLE_INTEREST_CALCULATION= process.env.ENABLE_INTEREST_CALCULATION || false;
-const ENABLE_PAYEE_RENAME = process.env.ENABLE_PAYEE_RENAME || false;
-const ENABLE_GHOSTFOLIO_SYNC = process.env.ENABLE_GHOSTFOLIO_SYNC || false;
 const GHOSTFOLIO_SERVER_URL = process.env.GHOSTFOLIO_SERVER_URL || "";
 const GHOSTFOLIO_TOKEN = process.env.GHOSTFOLIO_TOKEN || "";
 
@@ -23,11 +19,31 @@ const ACTUAL_SERVER_PASSWORD = process.env.ACTUAL_SERVER_PASSWORD || "";
 const CRON_EXPRESSION = process.env.CRON_EXPRESSION || "0 */4 * * *";
 const ACTUAL_SYNC_ID = process.env.ACTUAL_SYNC_ID || "";
 
-const ENABLE_HOLD_INCOME_FOR_NEXT_MONTH = process.env.ENABLE_HOLD_INCOME_FOR_NEXT_MONTH || false;
+const ENABLE_HOLD_INCOME_FOR_NEXT_MONTH = stringToBoolean(process.env.ENABLE_HOLD_INCOME_FOR_NEXT_MONTH);
+const ENABLE_INTEREST_CALCULATION= stringToBoolean(process.env.ENABLE_INTEREST_CALCULATION);
+const ENABLE_PAYEE_RENAME = stringToBoolean(process.env.ENABLE_PAYEE_RENAME);
+const ENABLE_BANK_SYNC = stringToBoolean(process.env.ENABLE_BANK_SYNC);
+const ENABLE_GHOSTFOLIO_SYNC = stringToBoolean(process.env.ENABLE_GHOSTFOLIO_SYNC);
 
 
-const ENABLE_BANK_SYNC = process.env.ENABLE_BANK_SYNC || false;
+function stringToBoolean(stringValue){
+    switch(stringValue?.toLowerCase()?.trim()){
+        case "true": 
+        case "yes": 
+        case "1": 
+          return true;
 
+        case "false": 
+        case "no": 
+        case "0": 
+        case null: 
+        case undefined:
+          return false;
+
+        default: 
+          return JSON.parse(stringValue);
+    }
+}
 
 function validateEnv(variables){
     // Assert that all required environment variables are set
