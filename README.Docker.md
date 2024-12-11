@@ -32,6 +32,7 @@ services:
       - GHOSTFOLIO_SERVER_URL=
       - GHOSTFOLIO_TOKEN=
       - ENABLE_HOLD_INCOME_FOR_NEXT_MONTH=true
+      - ENABLE_BANK_SYNC=true
     restart: unless-stopped
 ```
 
@@ -55,5 +56,6 @@ docker run -d --name actualtasks \
     - e 'GHOSTFOLIO_SERVER_URL'= \
     - e 'GHOSTFOLIO_TOKEN'= \
     - e 'ENABLE_HOLD_INCOME_FOR_NEXT_MONTH'=true \
+    - e 'ENABLE_BANK_SYNC'=true \
   --restart=on-failure rodriguestiago0/actualtasks:latest
 ```

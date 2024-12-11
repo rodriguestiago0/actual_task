@@ -24,6 +24,10 @@ Create a new transaction to keep ghostfolio account balance and actual account b
 ### Hold income category transaction amount for next month
 Sum all income transaction and hold it to next month budget 
 
+### Run bank sync
+Run bank sync
+
+
 ## Setup
 
 -   Clone this repo!
@@ -42,10 +46,13 @@ This is a repository where I will be adding tasks to run periodically. For now b
     $ myedenredactual <command> <flags>
 
   Commands & Options
-    config              Print the location of actualplaid the config file
-    fix-payees          Will apply the regex and replace for empty string
-    calculate-mortage   Will check the mortage balance and calculate the principal payment based on your montly payment
-    ghostfolio-sync     Will check ghost balance account and actual account balances and create a transaction in actual to sync both balances.
+    config                        Print the location of actualplaid the config file
+    fix-payees                    Will apply the regex and replace for empty string
+    calculate-mortage             Will check the mortage balance and calculate the principal payment based on your montly payment
+    ghostfolio-sync               Will check ghost balance account and actual account balances and create a transaction in actual to sync both balances.
+    hold-amout-for-next-month     Sum all income transaction and hold it to next month budget 
+    bank-sync                     Will run the bank sync
+
 
   Options for all commands
     --user, -u       Specify the user to load configs for
