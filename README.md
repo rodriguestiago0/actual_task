@@ -43,7 +43,7 @@ This is a repository where I will be adding tasks to run periodically. For now b
 
 ```
   Usage
-    $ myedenredactual <command> <flags>
+    $ actual-tasks <command> <flags>
 
   Commands & Options
     config                        Print the location of actualplaid the config file
@@ -57,5 +57,5 @@ This is a repository where I will be adding tasks to run periodically. For now b
   Options for all commands
     --user, -u       Specify the user to load configs for
   Examples
-    $ myedenredactual import --account="My Checking" --since="2020-05-28"
+    $ actual-tasks config
 ```
