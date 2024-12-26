@@ -75,7 +75,7 @@ async function ghostfolioSync() {
                 }
             ])
         } else {
-            console.log("No difference found for account " + account);
+            console.log("No difference found for account " + account + '[' + actualAccount + ']');
         }
     }
     await finalize(actual);
