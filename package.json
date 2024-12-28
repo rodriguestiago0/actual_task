@@ -10,7 +10,7 @@
 	"license": "MIT",
 	"dependencies": {
 		"@actual-app/api": "^24.10.0",
-		"better-opn": "^2.0.0",
+		"better-opn": "^3.0.2",
 		"conf": "^7.1.1",
 		"cron-parser": "^4.9.0",
 		"dotenv": "^16.3.1",
