@@ -75,7 +75,7 @@ async function ghostfolioSync() {
                 }
             ])
         } else {
-            console.log("No difference found for account " + account + '(' + actualBalance + ')' + '[' + actualAccount + '(' + actualBalance + ')' + ']');
+            console.log("No difference found for account " + account + '(' + actualBalance + ')' + '(' + actualBalance + ')');
         }
     }
     await finalize(actual);
