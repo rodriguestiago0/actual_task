@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const meow = require("meow");
-const myedenred = require("./cli.js");
+const engine = require("./cli.js");
 
 const cli = meow(
     `
@@ -39,5 +39,5 @@ const cli = meow(
     }
 );
 
-myedenred(cli.input[0], cli.flags);
+engine(cli.input[0], cli.flags);
 
