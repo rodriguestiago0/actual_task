@@ -62,9 +62,11 @@ async function calculateMortage() {
 
 async function ghostfolioSync() {
     const actual = await initialize(config);
+    const ghostfolioAccounts = await ghostfolio.getAccountsBalance();
     for (const [ghostfolioAccount, actualAccount] of Object.entries(appConfig.GHOSTFOLIO_ACCOUNT_MAPPING)) {
         actualBalance = await getAccountBalance(actual, actualAccount);
-        ghostfolioBalance = await ghostfolio.getAccountBalance(ghostfolioAccount);
+        ghostfolioAccountDetails = ghostfolioAccounts.filter((account) => account.id == ghostfolioAccount);
+        ghostfolioBalance = Math.floor(ghostfolioAccountDetails[0].value*100);
         account = appConfig.GHOSTFOLIO_ACTUAL_PAYEE_NAME_MAPPING[ghostfolioAccount];
         if (actualBalance != ghostfolioBalance) {
             await importTransactions(actual, actualAccount, [
