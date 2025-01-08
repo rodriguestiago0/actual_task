@@ -20,15 +20,35 @@ module.exports = async (command, flags) => {
     if (command === "config") {
         console.log(`Config for this app is located at: ${config.path}`);
     } else if (command === "fix-payees") {
-        await fixPayees();
+        try{
+            await fixPayees();
+        } catch (e){
+            console.error(e);
+        }
     } else if (command === "calculate-mortage") {
-        await calculateMortage();
+         try{
+            await calculateMortage();
+        } catch (e){
+            console.error(e);
+        }
     }  else if (command === "ghostfolio-sync") {
-        await ghostfolioSync();
+        try{
+            await ghostfolioSync();
+        } catch (e){
+            console.error(e);
+        }
     } else if (command === "hold-amout-for-next-month")  {
-        await holdAmoutForNextMonth();
+        try{
+            await holdAmoutForNextMonth();
+        } catch (e){
+            console.error(e);
+        }
     } else if (command === "bank-sync")  {
-        await bankSync();
+        try{
+            await bankSync();
+        } catch (e){
+            console.error(e);
+        }
     }
     process.exit();
 };
