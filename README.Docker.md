@@ -21,6 +21,7 @@ services:
       - PAYEE_REGEX_MATCH=
       - ACTUAL_SERVER_URL= 
       - ACTUAL_SERVER_PASSWORD=
+      - ACTUAL_FILE_PASSWORD=
       - ACTUAL_SYNC_ID=
       - ENABLE_INTEREST_CALCULATION=true
       - ENABLE_PAYEE_RENAME=true
@@ -47,6 +48,7 @@ docker run -d --name actualtasks \
     - e 'PAYEE_REGEX_MATCH=' \
     - e 'ACTUAL_SERVER_URL= ' \
     - e 'ACTUAL_SERVER_PASSWORD=' \
+    - e 'ACTUAL_FILE_PASSWORD=' \
     - e 'ACTUAL_SYNC_ID=' \
     - e 'CRON_EXPRESSION'= # default value is "0 */4 * '* *"' \
     - e 'GHOSTFOLIO_ACCOUNT'= \
