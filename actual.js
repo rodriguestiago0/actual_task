@@ -21,7 +21,13 @@ async function initialize(config) {
         });
 
         let id = config.get("budget_id")
-        await actual.downloadBudget(id);
+        var passwordConfig = {};
+        if (!config.ACTUAL_FILE_PASSWORD) {
+            passwordConfig = {
+                password: config.ACTUAL_FILE_PASSWORD
+            }
+        }
+        await actual.downloadBudget(id, passwordConfig);
     } catch (e) {
         throw new Error(`Actual Budget Error: ${e.message}`);
     }

@@ -15,6 +15,8 @@ const PAYEE_REGEX_MATCH = process.env.PAYEE_REGEX_MATCH || "";
 
 const ACTUAL_SERVER_URL = process.env.ACTUAL_SERVER_URL || "";
 const ACTUAL_SERVER_PASSWORD = process.env.ACTUAL_SERVER_PASSWORD || "";
+const ACTUAL_FILE_PASSWORD = process.env.ACTUAL_FILE_PASSWORD || "";
+
 
 const CRON_EXPRESSION = process.env.CRON_EXPRESSION || "0 */4 * * *";
 const ACTUAL_SYNC_ID = process.env.ACTUAL_SYNC_ID || "";
@@ -122,6 +124,7 @@ function getAppConfigFromEnv() {
     const appConfig = {
         ACTUAL_SERVER_URL,
         ACTUAL_SERVER_PASSWORD,
+        ACTUAL_FILE_PASSWORD,
         ACTUAL_SYNC_ID,
         CRON_EXPRESSION,
         PAYEE_REGEX_MATCH,
