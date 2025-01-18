@@ -22,7 +22,7 @@ async function initialize(config) {
 
         let id = config.get("budget_id")
         var passwordConfig = {};
-        if (!appConfig.ACTUAL_FILE_PASSWORD) {
+        if (appConfig.ACTUAL_FILE_PASSWORD) {
             passwordConfig = {
                 password: appConfig.ACTUAL_FILE_PASSWORD
             }
