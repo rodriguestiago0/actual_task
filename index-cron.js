@@ -1,4 +1,4 @@
-const { fixPayees, calculateMortage, ghostfolioSync, holdAmoutForNextMonth, bankSync } = require("./engine.js");
+const { fixPayees, calculateMortgage, ghostfolioSync, holdAmoutForNextMonth, bankSync } = require("./engine.js");
 var cron = require('node-cron');
 const parser = require('cron-parser');
 const { getAppConfigFromEnv } = require("./config");
@@ -36,7 +36,7 @@ if (appConfig.ENABLE_BANK_SYNC) {
 cron.schedule(cronExpression, async () => {
     if (appConfig.ENABLE_INTEREST_CALCULATION) {
         console.info("Running interest calculation");
-        await calculateMortage();
+        await calculateMortgage();
     }
 
     if (appConfig.ENABLE_PAYEE_RENAME) {

@@ -10,7 +10,7 @@ const cli = meow(
   Commands & Options
     config                       Print the location of actualtasks the config file
     fix-payees                   Apply the regex configured and remove it
-    calculate-mortage            Calculate the principal from the mortage payment
+    calculate-mortgage            Calculate the principal from the mortgage payment
     ghostfolio-sync              Sync Ghostfolio balance accounts with actual accounts
     hold-amout-for-next-month    Call sync method
 

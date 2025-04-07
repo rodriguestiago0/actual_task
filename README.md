@@ -36,7 +36,7 @@ Run bank sync
 
 ## Some things worth noting
 
-This is a repository where I will be adding tasks to run periodically. For now both fixing payees name and calculate mortage are enabled by default.
+This is a repository where I will be adding tasks to run periodically. For now both fixing payees name and calculate mortgage are enabled by default.
 
 ## Commands
 
@@ -48,7 +48,7 @@ This is a repository where I will be adding tasks to run periodically. For now b
   Commands & Options
     config                        Print the location of actualplaid the config file
     fix-payees                    Will apply the regex and replace for empty string
-    calculate-mortage             Will check the mortage balance and calculate the principal payment based on your montly payment
+    calculate-mortgage             Will check the mortgage balance and calculate the principal payment based on your montly payment
     ghostfolio-sync               Will check ghost balance account and actual account balances and create a transaction in actual to sync both balances.
     hold-amout-for-next-month     Sum all income transaction and hold it to next month budget 
     bank-sync                     Will run the bank sync

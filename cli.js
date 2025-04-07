@@ -1,5 +1,5 @@
 const { getConf } = require("./config.js");
-const { fixPayees, calculateMortage, ghostfolioSync, holdAmoutForNextMonth, bankSync } = require("./engine.js");
+const { fixPayees, calculateMortgage, ghostfolioSync, holdAmoutForNextMonth, bankSync } = require("./engine.js");
 
 let config;
 
@@ -25,9 +25,9 @@ module.exports = async (command, flags) => {
         } catch (e){
             console.error(e);
         }
-    } else if (command === "calculate-mortage") {
+    } else if (command === "calculate-mortgage") {
          try{
-            await calculateMortage();
+            await calculateMortgage();
         } catch (e){
             console.error(e);
         }

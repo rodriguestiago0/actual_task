@@ -38,7 +38,7 @@ function formatDate(date) {
     ].join('-');
   }
 
-async function calculateMortage() {
+async function calculateMortgage() {
     const actual = await initialize(config);
     lastPaymentTransaction = await getLastTransaction(actual, appConfig.MAIN_ACCOUNT_ID, appConfig.MORTGAGE_PAYEE_ID);
     lastPrincipalTransaction = await getLastTransaction(actual, appConfig.MORTGAGE_ACCOUNT_ID, appConfig.MORTGAGE_PAYEE_ID);
@@ -107,7 +107,7 @@ async function bankSync() {
 
 module.exports = {
     fixPayees,
-    calculateMortage,
+    calculateMortgage,
     ghostfolioSync,
     holdAmoutForNextMonth,
     bankSync
