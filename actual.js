@@ -68,7 +68,7 @@ async function getPayees(actualInstance, regexExpressionToMatch) {
 async function updatePayees(actualInstance, payeesToUpdate) {
     for (id of Object.keys(payeesToUpdate)) {
         await actualInstance.updatePayee(id, {
-            "Name": payeesToUpdate[id]
+            "name": payeesToUpdate[id]
           });
     } 
 }
