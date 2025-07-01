@@ -1,4 +1,4 @@
-const { fixPayees, calculateMortgage, ghostfolioSync, holdAmoutForNextMonth, bankSync } = require("./engine.js");
+const { fixPayees, calculateMortgage, ghostfolioSync, bankSync } = require("./engine.js");
 var cron = require('node-cron');
 const parser = require('cron-parser');
 const { getAppConfigFromEnv } = require("./config");
@@ -25,9 +25,6 @@ if (appConfig.ENABLE_GHOSTFOLIO_SYNC) {
     console.info("Task ghostfolio sync enabled");
 }
 
-if (appConfig.ENABLE_HOLD_INCOME_FOR_NEXT_MONTH){
-    console.info("Task hold for next month enabled");
-}
 
 if (appConfig.ENABLE_BANK_SYNC) {
     console.info("Task bank sync enabled");
@@ -49,10 +46,6 @@ cron.schedule(cronExpression, async () => {
         await ghostfolioSync();
     }
 
-    if (appConfig.ENABLE_HOLD_INCOME_FOR_NEXT_MONTH){
-        console.info("Running hold for next month");
-        await holdAmoutForNextMonth();
-    }
 
     if (appConfig.ENABLE_BANK_SYNC){
         console.info("Running bank sync");

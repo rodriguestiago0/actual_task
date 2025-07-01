@@ -37,12 +37,6 @@ module.exports = async (command, flags) => {
         } catch (e){
             console.error(e);
         }
-    } else if (command === "hold-amout-for-next-month")  {
-        try{
-            await holdAmoutForNextMonth();
-        } catch (e){
-            console.error(e);
-        }
     } else if (command === "bank-sync")  {
         try{
             await bankSync();

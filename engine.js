@@ -88,17 +88,7 @@ function zeroPad(num, places) {
     return Array(+(zero > 0 && zero)).join("0") + num;
   }
 
-async function holdAmoutForNextMonth() {
-    const date = new Date();
-    const year = date.getFullYear();
-    d = year + '-' + zeroPad(date.getMonth() + 1, 2)
-    const actual = await initialize(config);
-    amount = await getHoldBalance(actual, d);
-    if (amount > 0) {
-        await holdBudgetForNextMonth(actual, d, amount)
-    }
-    await finalize(actual);
-}
+
 async function bankSync() {
     const actual = await initialize(config);
     await actual.runBankSync()
@@ -109,6 +99,5 @@ module.exports = {
     fixPayees,
     calculateMortgage,
     ghostfolioSync,
-    holdAmoutForNextMonth,
     bankSync
 }
