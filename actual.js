@@ -65,6 +65,14 @@ async function getPayees(actualInstance, regexExpressionToMatch) {
  * 
  * @param {typeof actual} actualInstance 
  */
+async function getAllPayees(actualInstance) {
+    return await actualInstance.getPayees();
+}
+
+/**
+ * 
+ * @param {typeof actual} actualInstance 
+ */
 async function updatePayees(actualInstance, payeesToUpdate) {
     for (id of Object.keys(payeesToUpdate)) {
         await actualInstance.updatePayee(id, {
@@ -117,35 +125,22 @@ async function importTransactions(actualInstance, accountId, transactions) {
  * @param {*} accountId 
  */
 async function getAccountBalance(actualInstance, accountId) {
-    const balance = await actualInstance.getAccountBalance(accountId)
+    const balance = await actualInstance.getAccountBalance(accountId);
     return balance;
 }
 
-/**
- * @param {typeof actual} actualInstance 
- * @param {*} month 
- */
-async function getHoldBalance(actualInstance, month) {
-    const budget = await actualInstance.getBudgetMonth(month)
-    received = 0
-    for (const [_, categoryGroup] of Object.entries(budget.categoryGroups)) {
-        if(categoryGroup.is_income) {
-            received += categoryGroup.received
-        }
-    }
-    return received;
-}
-
-
 
 /**
  * @param {typeof actual} actualInstance 
- * @param {*} month 
+ * @param {*} payeeIDs 
  */
-async function holdBudgetForNextMonth(actualInstance, month, amount) {
-    await actualInstance.resetBudgetHold(month);
-    actualInstance.holdBudgetForNextMonth(month, amount);
+async function mergePayees(actualInstance, payeeIDs) {
+    if (payeeIDs.length < 2) return;
+    const targetID = payeeIDs[0]
+    const mergeIds = payeeIDs.slice(1)
+    await actualInstance.mergePayees(targetID, mergeIds);
 }
+
 /**
  * 
  * @param {typeof actual} actualInstance 
@@ -161,9 +156,9 @@ module.exports = {
     importTransactions,
     getAccountBalance,
     getPayees,
+    getAllPayees,
     updatePayees,
+    mergePayees,
     getLastTransaction,
-    getHoldBalance,
-    holdBudgetForNextMonth,
     finalize
 }

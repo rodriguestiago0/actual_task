@@ -15,14 +15,13 @@ This task will also remove extra space in the payee name.
 
 **Output**:  `Continente Porto` 
 
+**Note:** In the end it will merge payees with the exact same name
+
 ### Create a transaction that deducts your payment mortgage
 To configure the correct interest rate is the % multiple by 1000
 
 ### Sync ghostfolio account with Actual Budget account
 Create a new transaction to keep ghostfolio account balance and actual account balance in sync
-
-### Hold income category transaction amount for next month
-Sum all income transaction and hold it to next month budget 
 
 ### Run bank sync
 Run bank sync

@@ -1,5 +1,5 @@
 const { getAppConfigFromEnv, getConf } = require("./config");
-const { initialize, getPayees, updatePayees, getLastTransaction, finalize, getAccountBalance, importTransactions, getHoldBalance, holdBudgetForNextMonth} = require("./actual.js");
+const { initialize, getPayees, getAllPayees, updatePayees, getLastTransaction, finalize, getAccountBalance, importTransactions, mergePayees} = require("./actual.js");
 const ghostfolio = require("./ghostfolio.js");
 
 const appConfig = getAppConfigFromEnv();
@@ -15,14 +15,39 @@ async function fixPayees() {
         {
             name = payee.name.replace(new RegExp(appConfig.PAYEE_REGEX_MATCH, "gis"), "");
         }
-        name = name.replace(new RegExp(" {2,}", "gis"), " ")
+        name = name.replace(new RegExp(" {2,}", "gis"), " ").trim()
         if (name != payee.name)
         {
-            updatedPayee[payee.id] = name.trim();
-            console.log ("Update payee from " + payee.name + " to " + name.trim() )
+            updatedPayee[payee.id] = name;
+            console.log ("Update payee from " + payee.name + " to " + name)
         }
     });
+    
     await updatePayees(actual, updatedPayee)
+
+    const payeesToMerge = new Map();
+    allPayees = await getAllPayees(actual)
+    allPayees.forEach(payee => {
+        if (payee.transfer_acct != null) {
+            return;
+        }
+        let ids = [];
+        if (payeesToMerge.has(payee.name)){
+            ids = payeesToMerge.get(payee.name);
+            ids.push(payee.id);
+        } else {
+            ids.push(payee.id);
+        }
+        payeesToMerge.set(payee.name, ids);
+    })
+
+    for (let [name, ids] of payeesToMerge) { 
+        if (ids.length > 1) {
+            console.log("Merge payees", name, ids);
+            await mergePayees(actual, ids);
+        }       
+    }
+
     await finalize(actual);
 }
 
@@ -82,11 +107,6 @@ async function ghostfolioSync() {
     }
     await finalize(actual);
 }
-
-function zeroPad(num, places) {
-    var zero = places - num.toString().length + 1;
-    return Array(+(zero > 0 && zero)).join("0") + num;
-  }
 
 
 async function bankSync() {
