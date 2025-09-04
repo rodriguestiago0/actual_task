@@ -1,5 +1,5 @@
 const { getConf } = require("./config.js");
-const { fixPayees, calculateMortgage, ghostfolioSync, holdAmoutForNextMonth, bankSync } = require("./engine.js");
+const { fixPayees, calculateMortgage, ghostfolioSync, bankSync } = require("./engine.js");
 
 let config;
 

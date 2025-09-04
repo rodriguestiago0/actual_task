@@ -21,7 +21,6 @@ const ACTUAL_FILE_PASSWORD = process.env.ACTUAL_FILE_PASSWORD || "";
 const CRON_EXPRESSION = process.env.CRON_EXPRESSION || "0 */4 * * *";
 const ACTUAL_SYNC_ID = process.env.ACTUAL_SYNC_ID || "";
 
-const ENABLE_HOLD_INCOME_FOR_NEXT_MONTH = stringToBoolean(process.env.ENABLE_HOLD_INCOME_FOR_NEXT_MONTH);
 const ENABLE_INTEREST_CALCULATION= stringToBoolean(process.env.ENABLE_INTEREST_CALCULATION);
 const ENABLE_PAYEE_RENAME = stringToBoolean(process.env.ENABLE_PAYEE_RENAME);
 const ENABLE_BANK_SYNC = stringToBoolean(process.env.ENABLE_BANK_SYNC);
@@ -140,7 +139,6 @@ function getAppConfigFromEnv() {
         GHOSTFOLIO_ACTUAL_PAYEE_NAME_MAPPING,
         GHOSTFOLIO_SERVER_URL,
         GHOSTFOLIO_TOKEN,
-        ENABLE_HOLD_INCOME_FOR_NEXT_MONTH,
         ENABLE_BANK_SYNC
     }
 
