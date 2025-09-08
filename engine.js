@@ -6,6 +6,7 @@ const appConfig = getAppConfigFromEnv();
 config = getConf("default")
 
 async function fixPayees() {
+    console.log("Fix payees name");
     let actual = await initialize(config);
     payees = await getPayees(actual, appConfig.PAYEE_REGEX_MATCH)
     updatedPayee = {}
@@ -26,6 +27,8 @@ async function fixPayees() {
     
     await finalize(actual);
     
+    
+    console.log("Fix repeated payees");
     actual = await initialize(config);
 
     await updatePayees(actual, updatedPayee)
