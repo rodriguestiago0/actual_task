@@ -27,8 +27,8 @@ async function fixPayees() {
     
     await finalize(actual);
     
-    
     console.log("Fix repeated payees");
+
     actual = await initialize(config);
 
     await updatePayees(actual, updatedPayee)

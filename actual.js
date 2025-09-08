@@ -13,7 +13,11 @@ const appConfig = getAppConfigFromEnv();
 async function initialize(config) {
     try {
         const tmp_dir = `./temp_data_actual/${config.get("user")}`
+        if (fs.existsSync(tmp_dir)) {
+            fs.rmdirSync(tmp_dir, {recursive: true})
+        }
         fs.mkdirSync(tmp_dir, { recursive: true });
+
         await actual.init({
             serverURL: appConfig.ACTUAL_SERVER_URL,
             password: appConfig.ACTUAL_SERVER_PASSWORD,
