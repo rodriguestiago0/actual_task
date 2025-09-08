@@ -14,7 +14,7 @@ async function initialize(config) {
     try {
         const tmp_dir = `./temp_data_actual/${config.get("user")}`
         if (fs.existsSync(tmp_dir)) {
-            fs.rmdirSync(tmp_dir, {recursive: true})
+            fs.rmSync(tmp_dir, {recursive: true})
         }
         fs.mkdirSync(tmp_dir, { recursive: true });
 
@@ -36,6 +36,7 @@ async function initialize(config) {
         throw new Error(`Actual Budget Error: ${e.message}`);
     }
 
+    console.log("initialize");
     return actual;
 }
 
@@ -152,6 +153,8 @@ async function mergePayees(actualInstance, payeeIDs) {
 async function finalize(actualInstance) {
     await actualInstance.sync()
     await actualInstance.shutdown();
+    
+    console.log("finalize");
 }
 
 module.exports = {

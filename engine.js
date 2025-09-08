@@ -7,7 +7,7 @@ config = getConf("default")
 
 async function fixPayees() {
     console.log("Fix payees name");
-    let actual = await initialize(config);
+    const actual = await initialize(config);
     payees = await getPayees(actual, appConfig.PAYEE_REGEX_MATCH)
     updatedPayee = {}
     payees.forEach(payee => {
@@ -29,12 +29,12 @@ async function fixPayees() {
     
     console.log("Fix repeated payees");
 
-    actual = await initialize(config);
+    const actual2 = await initialize(config);
 
-    await updatePayees(actual, updatedPayee)
+    await updatePayees(actual2, updatedPayee)
 
     const payeesToMerge = new Map();
-    allPayees = await getAllPayees(actual)
+    allPayees = await getAllPayees(actual2)
     allPayees.forEach(payee => {
         if (payee.transfer_acct != null) {
             return;
@@ -52,11 +52,11 @@ async function fixPayees() {
     for (let [name, ids] of payeesToMerge) { 
         if (ids.length > 1) {
             console.log("Merge payees", name, ids);
-            await mergePayees(actual, ids);
+            await mergePayees(actual2, ids);
         }       
     }
 
-    await finalize(actual);
+    await finalize(actual2);
 }
 
 function padTo2Digits(num) {
