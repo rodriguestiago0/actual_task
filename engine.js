@@ -6,7 +6,7 @@ const appConfig = getAppConfigFromEnv();
 config = getConf("default")
 
 async function fixPayees() {
-    const actual = await initialize(config);
+    let actual = await initialize(config);
     payees = await getPayees(actual, appConfig.PAYEE_REGEX_MATCH)
     updatedPayee = {}
     payees.forEach(payee => {
@@ -23,6 +23,11 @@ async function fixPayees() {
         }
     });
     
+    
+    await finalize(actual);
+    
+    actual = await initialize(config);
+
     await updatePayees(actual, updatedPayee)
 
     const payeesToMerge = new Map();
