@@ -14,6 +14,7 @@ async function initialize(config) {
     try {
         const tmp_dir = `./temp_data_actual/${config.get("user")}`
         if (fs.existsSync(tmp_dir)) {
+            console.log("delete temp dir");
             fs.rmSync(tmp_dir, {recursive: true})
         }
         fs.mkdirSync(tmp_dir, { recursive: true });

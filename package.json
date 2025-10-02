@@ -9,7 +9,7 @@
 	"author": "Tiago Rodrigues",
 	"license": "MIT",
 	"dependencies": {
-		"@actual-app/api": "^25.9.0",
+		"@actual-app/api": "^25.10.0",
 		"better-opn": "^3.0.2",
 		"conf": "^7.1.1",
 		"cron-parser": "^4.9.0",
