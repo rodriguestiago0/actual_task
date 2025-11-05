@@ -1,7 +1,4 @@
-const Conf = require("conf");
-const config = require("dotenv").config;
-config();
-
+require("dotenv").config();
 
 const INTEREST_RATE = process.env.INTEREST_RATE || "";
 const MORTGAGE_PAYEE_ID = process.env.MORTGAGE_PAYEE_ID || "";
@@ -146,19 +143,6 @@ function getAppConfigFromEnv() {
 }
 
 
-function getConf(username) {
-    const appConfig = getAppConfigFromEnv();
-    const key = `${username}`;
-
-    const tmp = new Conf({
-        configName: key
-    });
-    tmp.set("user", key);
-    tmp.set("budget_id", appConfig.ACTUAL_SYNC_ID)
-    return tmp;
-}
-
 module.exports = {
-    getAppConfigFromEnv,
-    getConf
+    getAppConfigFromEnv
 }

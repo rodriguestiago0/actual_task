@@ -11,7 +11,6 @@
 	"dependencies": {
 		"@actual-app/api": "^25.11.0",
 		"better-opn": "^3.0.2",
-		"conf": "^15.0.2",
 		"cron-parser": "^5.4.0",
 		"dotenv": "^17.2.3",
 		"meow": "^14.0.0",

@@ -1,43 +1,29 @@
 #!/usr/bin/env node
-const meow = require("meow");
-const engine = require("./cli.js");
+import meow from 'meow';
+import engine from './cli.js';
 
 const cli = meow(
-    `
-  Usage
-    $ actualtasks <command> <flags>
+  `
+    Usage
+      $ actualtasks <command> <flags>
 
-  Commands & Options
-    config                       Print the location of actualtasks the config file
-    fix-payees                   Apply the regex configured and remove it
-    calculate-mortgage            Calculate the principal from the mortgage payment
-    ghostfolio-sync              Sync Ghostfolio balance accounts with actual accounts
-    hold-amout-for-next-month    Call sync method
+    Commands & Options
+      config                       Print the location of actualtasks the config file
+      fix-payees                   Apply the regex configured and remove it
+      calculate-mortgage            Calculate the principal from the mortgage payment
+      ghostfolio-sync              Sync Ghostfolio balance accounts with actual accounts
+      hold-amout-for-next-month    Call sync method
 
 
-  Options for all commands
-    --user, -u       Specify the user to load configs for 
+    Options for all commands
+      --user, -u       Specify the user to load configs for 
 
-  Examples
-    $ actualtasks config
-`,
-    {
-        flags: {
-            user: {
-                alias: "u",
-                type: "string",
-            },
-            account: {
-                alias: "a",
-                type: "string",
-            },
-            since: {
-                alias: "s",
-                type: "string",
-            },
-        },
-    }
-);
+    Examples
+      $ actualtasks config
+  `,
+  {
+    importMeta: import.meta,
+});
 
-engine(cli.input[0], cli.flags);
+engine(cli.input[0]);
 

@@ -1,4 +1,3 @@
-const { getConf } = require("./config.js");
 const { fixPayees, calculateMortgage, ghostfolioSync, bankSync } = require("./engine.js");
 
 let config;
@@ -9,17 +8,13 @@ let config;
  * @param {object} flags 
  * @param {string} flags.since
  */
-module.exports = async (command, flags) => {
+module.exports = async (command) => {
     if (!command) {
         console.log('Try "actualtasks --help"');
         process.exit();
     }
 
-    config = getConf(flags.user || "default")
-
-    if (command === "config") {
-        console.log(`Config for this app is located at: ${config.path}`);
-    } else if (command === "fix-payees") {
+    if (command === "fix-payees") {
         try{
             await fixPayees();
         } catch (e){

@@ -10,9 +10,9 @@ const appConfig = getAppConfigFromEnv();
  * 
  * @returns {Promise<typeof actual>}
  */
-async function initialize(config) {
+async function initialize() {
     try {
-        const tmp_dir = `./temp_data_actual/${config.get("user")}`
+        const tmp_dir = `./temp_data_actual/${appConfig.ACTUAL_SYNC_ID}`
         if (fs.existsSync(tmp_dir)) {
             console.log("delete temp dir");
             fs.rmSync(tmp_dir, {recursive: true})
@@ -25,7 +25,7 @@ async function initialize(config) {
             dataDir: tmp_dir
         });
 
-        let id = config.get("budget_id")
+        let id = appConfig.ACTUAL_SYNC_ID
         var passwordConfig = {};
         if (appConfig.ACTUAL_FILE_PASSWORD) {
             passwordConfig = {

@@ -1,13 +1,12 @@
-const { getAppConfigFromEnv, getConf } = require("./config");
+const { getAppConfigFromEnv } = require("./config");
 const { initialize, getPayees, getAllPayees, updatePayees, getLastTransaction, finalize, getAccountBalance, importTransactions, mergePayees} = require("./actual.js");
 const ghostfolio = require("./ghostfolio.js");
 
 const appConfig = getAppConfigFromEnv();
-config = getConf("default")
 
 async function fixPayees() {
     console.log("Fix payees name");
-    const actual = await initialize(config);
+    const actual = await initialize();
     payees = await getPayees(actual, appConfig.PAYEE_REGEX_MATCH)
     updatedPayee = {}
     payees.forEach(payee => {
@@ -29,7 +28,7 @@ async function fixPayees() {
     
     console.log("Fix repeated payees");
 
-    const actual2 = await initialize(config);
+    const actual2 = await initialize();
 
     await updatePayees(actual2, updatedPayee)
 
@@ -72,7 +71,7 @@ function formatDate(date) {
   }
 
 async function calculateMortgage() {
-    const actual = await initialize(config);
+    const actual = await initialize();
     lastPaymentTransaction = await getLastTransaction(actual, appConfig.MAIN_ACCOUNT_ID, appConfig.MORTGAGE_PAYEE_ID);
     lastPrincipalTransaction = await getLastTransaction(actual, appConfig.MORTGAGE_ACCOUNT_ID, appConfig.MORTGAGE_PAYEE_ID);
 
@@ -94,7 +93,7 @@ async function calculateMortgage() {
 }
 
 async function ghostfolioSync() {
-    const actual = await initialize(config);
+    const actual = await initialize();
     const ghostfolioAccounts = await ghostfolio.getAccountsBalance();
     for (const [ghostfolioAccount, actualAccount] of Object.entries(appConfig.GHOSTFOLIO_ACCOUNT_MAPPING)) {
         actualBalance = await getAccountBalance(actual, actualAccount);
@@ -118,7 +117,7 @@ async function ghostfolioSync() {
 
 
 async function bankSync() {
-    const actual = await initialize(config);
+    const actual = await initialize();
     await actual.runBankSync()
     await finalize(actual);
 }

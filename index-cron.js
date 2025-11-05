@@ -10,7 +10,7 @@ if (appConfig.CRON_EXPRESSION != "") {
     cronExpression = appConfig.CRON_EXPRESSION;
 }
 console.info("Defined cron is: ", cronExpression)
-const interval = parser.parseExpression(cronExpression);
+const interval = parser.CronExpressionParser.parse(cronExpression);
 console.info('Next run:', interval.next().toISOString());
 
 if (appConfig.ENABLE_INTEREST_CALCULATION) {
