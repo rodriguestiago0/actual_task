@@ -12,6 +12,7 @@ const cli = meow(
       fix-payees                   Apply the regex configured and remove it
       calculate-mortgage            Calculate the principal from the mortgage payment
       ghostfolio-sync              Sync Ghostfolio balance accounts with actual accounts
+      wealthfolio-sync             Sync Wealthfolio balance accounts with actual accounts
       hold-amout-for-next-month    Call sync method
 
 

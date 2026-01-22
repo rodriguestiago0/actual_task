@@ -1,6 +1,7 @@
 const { getAppConfigFromEnv } = require("./config");
 const { initialize, getPayees, getAllPayees, updatePayees, getLastTransaction, finalize, getAccountBalance, importTransactions, mergePayees} = require("./actual.js");
 const ghostfolio = require("./ghostfolio.js");
+const wealthfolio = require("./wealthfolio.js");
 
 const appConfig = getAppConfigFromEnv();
 
@@ -115,6 +116,29 @@ async function ghostfolioSync() {
     await finalize(actual);
 }
 
+async function wealthfolioSync() {
+    const actual = await initialize();
+    const wealthfolioAccounts = await wealthfolio.getAccountsBalance();
+    for (const [wealthfolioAccount, actualAccount] of Object.entries(appConfig.WEALTHFOLIO_ACCOUNT_MAPPING)) {
+        actualBalance = await getAccountBalance(actual, actualAccount);
+        wealthfolioAccountDetails = wealthfolioAccounts.filter((account) => account.accountId == wealthfolioAccount);
+        wealthfolioBalance = Math.floor(wealthfolioAccountDetails[0].totalValue*100);
+        account = appConfig.WEALTHFOLIO_ACTUAL_PAYEE_NAME_MAPPING[wealthfolioAccount];
+        if (actualBalance != wealthfolioBalance) {
+            await importTransactions(actual, actualAccount, [
+                {
+                    date:   formatDate(new Date()),
+                    amount: wealthfolioBalance-actualBalance,
+                    payee_name: account,
+                }
+            ])
+        } else {
+            console.log("No difference found for account " + account + '(' + actualBalance + ')' + '(' + actualBalance + ')');
+        }
+    }
+    await finalize(actual);
+}
+
 
 async function bankSync() {
     const actual = await initialize();
@@ -126,5 +150,6 @@ module.exports = {
     fixPayees,
     calculateMortgage,
     ghostfolioSync,
+    wealthfolioSync,
     bankSync
 }

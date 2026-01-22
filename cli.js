@@ -1,4 +1,4 @@
-const { fixPayees, calculateMortgage, ghostfolioSync, bankSync } = require("./engine.js");
+const { fixPayees, calculateMortgage, ghostfolioSync, wealthfolioSync, bankSync } = require("./engine.js");
 
 let config;
 
@@ -31,7 +31,13 @@ module.exports = async (command) => {
             await ghostfolioSync();
         } catch (e){
             console.error(e);
-        }
+        }    
+    } else if (command === "wealthfolio-sync") {
+        try{
+            await wealthfolioSync();
+        } catch (e){
+            console.error(e);
+        }    
     } else if (command === "bank-sync")  {
         try{
             await bankSync();

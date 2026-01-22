@@ -7,6 +7,7 @@ const MORTGAGE_ACCOUNT_ID = process.env.MORTGAGE_ACCOUNT_ID || "";
 const MAIN_ACCOUNT_ID = process.env.MAIN_ACCOUNT_ID || "";
 const GHOSTFOLIO_SERVER_URL = process.env.GHOSTFOLIO_SERVER_URL || "";
 const GHOSTFOLIO_TOKEN = process.env.GHOSTFOLIO_TOKEN || "";
+const WEALTHFOLIO_SERVER_URL = process.env.WEALTHFOLIO_SERVER_URL || "";
 
 const PAYEE_REGEX_MATCH = process.env.PAYEE_REGEX_MATCH || "";
 
@@ -22,6 +23,7 @@ const ENABLE_INTEREST_CALCULATION= stringToBoolean(process.env.ENABLE_INTEREST_C
 const ENABLE_PAYEE_RENAME = stringToBoolean(process.env.ENABLE_PAYEE_RENAME);
 const ENABLE_BANK_SYNC = stringToBoolean(process.env.ENABLE_BANK_SYNC);
 const ENABLE_GHOSTFOLIO_SYNC = stringToBoolean(process.env.ENABLE_GHOSTFOLIO_SYNC);
+const ENABLE_WEALTHFOLIO_SYNC = stringToBoolean(process.env.ENABLE_WEALTHFOLIO_SYNC);
 
 
 function stringToBoolean(stringValue){
@@ -117,6 +119,46 @@ function getAppConfigFromEnv() {
         })
     }
 
+    WEALTHFOLIO_ACCOUNT_MAPPING = {}
+    WEALTHFOLIO_ACTUAL_PAYEE_NAME_MAPPING = {}
+    if (ENABLE_WEALTHFOLIO_SYNC) {
+        
+        wealthfolioAccount = process.env.WEALTHFOLIO_ACCOUNT
+        actualAccount = process.env.WEALTHFOLIO_ACTUAL_ACCOUNT
+        wealthfolioPayeeName = process.env.WEALTHFOLIO_ACTUAL_PAYEE_NAME
+
+        if (!wealthfolioAccount){
+            throw new Error(`Missing environment variable: WEALTHFOLIO_ACCOUNT`);
+        }
+
+        if (!actualAccount){
+            throw new Error(`Missing environment variable: WEALTHFOLIO_ACTUAL_ACCOUNT`);
+        }
+
+        if (!wealthfolioPayeeName){
+            throw new Error(`Missing environment variable: WEALTHFOLIO_ACTUAL_PAYEE_NAME`);
+        }
+
+        WEALTHFOLIO_ACCOUNT_MAPPING[wealthfolioAccount] = actualAccount;
+        WEALTHFOLIO_ACTUAL_PAYEE_NAME_MAPPING[wealthfolioAccount] = wealthfolioPayeeName;
+        var i = 1;
+        while(true){
+            wealthfolioAccount = process.env[`WEALTHFOLIO_ACCOUNT_${i}`] || ""
+            actualAccount = process.env[`WEALTHFOLIO_ACTUAL_ACCOUNT_${i}`] || ""
+            wealthfolioPayeeName = process.env[`WEALTHFOLIO_ACTUAL_PAYEE_NAME_${i}`] || ""
+            if (!wealthfolioAccount || !actualAccount || !wealthfolioPayeeName) {
+                break;
+            }
+            i++;
+            WEALTHFOLIO_ACCOUNT_MAPPING[wealthfolioAccount] = actualAccount;
+            WEALTHFOLIO_ACTUAL_PAYEE_NAME_MAPPING[wealthfolioAccount] = wealthfolioPayeeName;
+        }
+
+        validateEnv({
+            WEALTHFOLIO_SERVER_URL
+        })
+    }
+
     const appConfig = {
         ACTUAL_SERVER_URL,
         ACTUAL_SERVER_PASSWORD,
@@ -136,6 +178,10 @@ function getAppConfigFromEnv() {
         GHOSTFOLIO_ACTUAL_PAYEE_NAME_MAPPING,
         GHOSTFOLIO_SERVER_URL,
         GHOSTFOLIO_TOKEN,
+        ENABLE_WEALTHFOLIO_SYNC,
+        WEALTHFOLIO_ACCOUNT_MAPPING,
+        WEALTHFOLIO_ACTUAL_PAYEE_NAME_MAPPING,
+        WEALTHFOLIO_SERVER_URL,
         ENABLE_BANK_SYNC
     }
 
