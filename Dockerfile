@@ -1,6 +1,6 @@
 ARG NODE_VERSION=24.11.0
 
-FROM node:${NODE_VERSION}-alpine AS BUILD_IMAGE
+FROM node:${NODE_VERSION}-alpine AS build_image
 
 WORKDIR /usr/src/app
 
@@ -11,21 +11,20 @@ RUN npm ci --omit=dev
 
 COPY . .
 
-FROM node:${NODE_VERSION}-alpine AS RUNNER_IMAGE
+FROM node:${NODE_VERSION}-alpine AS runner_image
 
 WORKDIR /usr/src/app
 
-COPY --from=BUILD_IMAGE /usr/src/app/node_modules ./node_modules
+COPY --from=build_image /usr/src/app/node_modules ./node_modules
 ADD . .
 ADD package*.json ./
 
-
 RUN chmod +x index-cron.js
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 # Run the application.
-CMD node index-cron.js
+CMD ["node", "index-cron.js"]
 
 
 
