@@ -1,4 +1,4 @@
-const { fixPayees, calculateMortgage, ghostfolioSync, bankSync } = require("./engine.js");
+const { fixPayees, calculateMortgage, ghostfolioSync, bankSync, wealthfolioSync } = require("./engine.js");
 var cron = require('node-cron');
 const parser = require('cron-parser');
 const { getAppConfigFromEnv } = require("./config");
@@ -25,6 +25,9 @@ if (appConfig.ENABLE_GHOSTFOLIO_SYNC) {
     console.info("Task ghostfolio sync enabled");
 }
 
+if (appConfig.ENABLE_WEALTHFOLIO_SYNC) {
+    console.info("Task wealthfolio sync enabled");
+}
 
 if (appConfig.ENABLE_BANK_SYNC) {
     console.info("Task bank sync enabled");
@@ -44,6 +47,12 @@ cron.schedule(cronExpression, async () => {
     if (appConfig.ENABLE_GHOSTFOLIO_SYNC) {
         console.info("Running ghostfolio sync");
         await ghostfolioSync();
+    }
+
+    
+    if (appConfig.ENABLE_WEALTHFOLIO_SYNC) {
+        console.info("Running wealthfolio sync");
+        await wealthfolioSync();
     }
 
 
