@@ -23,6 +23,9 @@ To configure the correct interest rate is the % multiple by 1000
 ### Sync ghostfolio account with Actual Budget account
 Create a new transaction to keep ghostfolio account balance and actual account balance in sync
 
+### Sync wealthfolio account with Actual Budget account
+Create a new transaction to keep wealthfolio account balance and actual account balance in sync
+
 ### Run bank sync
 Run bank sync
 
@@ -47,8 +50,9 @@ This is a repository where I will be adding tasks to run periodically. For now b
   Commands & Options
     config                        Print the location of actualplaid the config file
     fix-payees                    Will apply the regex and replace for empty string
-    calculate-mortgage             Will check the mortgage balance and calculate the principal payment based on your montly payment
-    ghostfolio-sync               Will check ghost balance account and actual account balances and create a transaction in actual to sync both balances.
+    calculate-mortgage            Will check the mortgage balance and calculate the principal payment based on your montly payment
+    ghostfolio-sync               Will check ghostfolio and actual account balance and create a transaction in actual to sync balances.
+    wealthfolio-sync              Will check wealthfolio and actual account balance and create a transaction in actual to sync balances.
     hold-amout-for-next-month     Sum all income transaction and hold it to next month budget 
     bank-sync                     Will run the bank sync
 
