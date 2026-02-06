@@ -1,6 +1,6 @@
 {
 	"name": "actual-tasks",
-	"version": "0.0.5",
+	"version": "1.1.20",
 	"description": "Run some tasks that iteract with Actual Budget",
 	"main": "index.js",
 	"bin": {
