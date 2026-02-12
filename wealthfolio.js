@@ -4,6 +4,14 @@ const appConfig = getAppConfigFromEnv();
 
 
 async function getAccountsBalance() {
+    url = appConfig.WEALTHFOLIO_SERVER_URL+ '/api/v1/portfolio/update'
+    accounts = await fetch(url, {
+        method: 'POST',
+    })
+    .catch((err) => {
+        console.error("error occured", err);
+    });
+
     url = appConfig.WEALTHFOLIO_SERVER_URL+ '/api/v1/valuations/latest'
     accounts = await fetch(url, {
         method: 'GET',
