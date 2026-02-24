@@ -1,17 +1,13 @@
 name: Docker Image Publish
 
 on:
-  push:
-    branches: [ "main" ]
-    tags: [ 'v*.*.*' ]
-  pull_request:
-    branches: [ "main" ]
+  release:
+    types: [published]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-  
+
     steps:
       -
         name: Checkout
@@ -39,6 +35,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }} # Don't push on PR
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
+
           labels: ${{ steps.meta.outputs.labels }}
