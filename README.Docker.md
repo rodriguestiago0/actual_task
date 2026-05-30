@@ -85,7 +85,7 @@ If you are running on a Linux system with `systemd` and want to start and stop t
 
 These units will automatically start and stop the `docker compose` stack based on the defined timers.
 
-1. Edit the service files (`systemd/ghostfolio-start.service` and `systemd/ghostfolio-stop.service`) and update the `WorkingDirectory` to the absolute path of this project directory:
+1. Edit the service files (`systemd/actual-tasks-start.service` and `systemd/actual-tasks-stop.service`) and update the `WorkingDirectory` to the absolute path of this project directory:
    ```ini
    WorkingDirectory=/absolute/path/to/actual_task
    ```
@@ -99,6 +99,6 @@ These units will automatically start and stop the `docker compose` stack based o
    ```
 4. Enable and start the timers:
    ```bash
-   sudo systemctl enable --now ghostfolio-start.timer
-   sudo systemctl enable --now ghostfolio-stop.timer
+   sudo systemctl enable --now actual-tasks-start.timer
+   sudo systemctl enable --now actual-tasks-stop.timer
    ```

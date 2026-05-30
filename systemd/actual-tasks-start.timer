@@ -1,8 +1,8 @@
 [Unit]
-Description=Start ghostfolio every night
+Description=Start actual-tasks every night
 
 [Timer]
-Unit=ghostfolio-start.service
+Unit=actual-tasks-start.service
 OnCalendar=*-*-* 01:00:00
 Persistent=true
 
