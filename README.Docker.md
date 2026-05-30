@@ -59,3 +59,46 @@ docker run -d --name actualtasks \
     - e 'ENABLE_BANK_SYNC'=true \
   --restart=on-failure rodriguestiago0/actualtasks:latest
 ```
+
+### Using `docker-compose.yml`
+
+Alternatively, you can use the provided `docker-compose.yml` to build and run the application. It automatically uses the `.env` file for configuration variables.
+
+1. Ensure you have copied `.env.sample` to `.env` and filled in your configuration values:
+   ```bash
+   cp .env.sample .env
+   ```
+2. Start the stack in the background:
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. **Updating the Code**: If you pull new updates or modify the script code locally, you should rebuild the image without caching to ensure changes take effect:
+   ```bash
+   docker compose build --no-cache
+   docker compose up -d
+   ```
+
+### Systemd Units (Optional)
+
+If you are running on a Linux system with `systemd` and want to start and stop the application automatically on a schedule, you can use the provided systemd service and timer units located in the `systemd/` directory.
+
+These units will automatically start and stop the `docker compose` stack based on the defined timers.
+
+1. Edit the service files (`systemd/ghostfolio-start.service` and `systemd/ghostfolio-stop.service`) and update the `WorkingDirectory` to the absolute path of this project directory:
+   ```ini
+   WorkingDirectory=/absolute/path/to/actual_task
+   ```
+2. Copy the `.service` and `.timer` files to your systemd directory:
+   ```bash
+   sudo cp systemd/*.service systemd/*.timer /etc/systemd/system/
+   ```
+3. Reload the systemd daemon:
+   ```bash
+   sudo systemctl daemon-reload
+   ```
+4. Enable and start the timers:
+   ```bash
+   sudo systemctl enable --now ghostfolio-start.timer
+   sudo systemctl enable --now ghostfolio-stop.timer
+   ```

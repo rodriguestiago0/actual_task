@@ -1,0 +1,10 @@
+[Unit]
+Description=Start ghostfolio every night
+
+[Timer]
+Unit=ghostfolio-start.service
+OnCalendar=*-*-* 01:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
