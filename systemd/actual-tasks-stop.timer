@@ -1,0 +1,10 @@
+[Unit]
+Description=Stop actual-tasks after 2 hours
+
+[Timer]
+Unit=actual-tasks-stop.service
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

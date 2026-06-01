@@ -1,0 +1,9 @@
+[Unit]
+Description=Stop actual-tasks compose stack
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/path/to/actual_task
+ExecStart=/usr/bin/docker compose down
