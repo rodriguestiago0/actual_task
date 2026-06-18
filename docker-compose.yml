@@ -2,4 +2,6 @@ services:
   actual_task:
     build: .
     env_file: .env
+    environment:
+      - TZ=Europe/Rome
     restart: unless-stopped
