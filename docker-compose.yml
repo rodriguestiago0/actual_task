@@ -3,5 +3,5 @@ services:
     build: .
     env_file: .env
     environment:
-      - TZ=Europe/Rome
+      - TZ=UTC
     restart: unless-stopped
