@@ -36,6 +36,11 @@ Run bank sync
 -   Install dependencies: `npm ci`
 -   Copy `.sample.env` to `.env` and fill in the blanks
 
+### Get Ghostfolio API key for `.env`
+
+```bash
+curl -X POST http://127.0.0.1:3333/api/v1/auth/anonymous -H "Content-Type: application/json" -d '{"accessToken": "<TOKEN>"}'
+```
 ## Some things worth noting
 
 This is a repository where I will be adding tasks to run periodically. For now both fixing payees name and calculate mortgage are enabled by default.
