@@ -63,6 +63,11 @@ describe("notify", () => {
     );
   });
 
+  it("accepts channels as an alias for chats", async (t) => {
+    const [request] = await send(t, "telegram://123:AbC@telegram?channels=42", "hi");
+    assert.deepEqual(request.body, { chat_id: "42", text: "hi" });
+  });
+
   it("posts to Discord and Slack webhooks", async (t) => {
     const [discord] = await send(t, "discord://ToKen@123", "hi");
     assert.equal(discord.url, "https://discord.com/api/webhooks/123/ToKen");

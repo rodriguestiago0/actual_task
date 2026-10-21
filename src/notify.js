@@ -42,7 +42,8 @@ const postJson = (url, data, headers = {}) =>
 /** Each service turns a parsed URL into send(text), throwing with the expected format if invalid. */
 const services = {
   telegram(url) {
-    const chats = list(url.searchParams.get("chats"));
+    // Shoutrrr also accepts "channels", which older Watchtower URLs use.
+    const chats = list(url.searchParams.get("chats") ?? url.searchParams.get("channels"));
     if (!url.password || chats.length === 0)
       throw new Error("expected telegram://TOKEN@telegram?chats=CHAT_ID");
     const token = `${decode(url.username)}:${decode(url.password)}`;
