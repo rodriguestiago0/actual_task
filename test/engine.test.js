@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import { withBudget } from "../src/actual.js";
 import { runTasks } from "../src/engine.js";
-import { notify } from "../src/notify.js";
+import { parseNotificationUrls } from "../src/notify.js";
 import { callsTo, fakeApi } from "./fake-api.js";
 
-const telegram = { botToken: "token", chatId: "42" };
+const notifications = parseNotificationUrls("telegram://1:token@telegram?chats=42");
 const actualConfig = { serverURL: "x", password: "p", syncId: "s", dataDir: "./temp_data_test" };
 
 function mockFetch() {
@@ -33,24 +33,6 @@ describe("withBudget", () => {
   });
 });
 
-describe("notify", () => {
-  it("does nothing without Telegram settings", async (t) => {
-    const fetch = mockFetch();
-    t.after(() => fetch.mock.restore());
-    await notify(null, "hi");
-    assert.equal(fetch.mock.callCount(), 0);
-  });
-
-  it("posts the message to the chat", async (t) => {
-    const fetch = mockFetch();
-    t.after(() => fetch.mock.restore());
-    await notify(telegram, "hi");
-    const [url, options] = fetch.mock.calls[0].arguments;
-    assert.equal(url, "https://api.telegram.org/bottoken/sendMessage");
-    assert.deepEqual(JSON.parse(options.body), { chat_id: "42", text: "hi" });
-  });
-});
-
 describe("runTasks", () => {
   it("keeps going after a failure and notifies about it", async (t) => {
     const fetch = mockFetch();
@@ -61,7 +43,7 @@ describe("runTasks", () => {
       second: { run: async () => ran.push("second") },
     };
 
-    const ok = await runTasks({ telegram }, ["first", "second"], registry);
+    const ok = await runTasks({ notifications }, ["first", "second"], registry);
 
     assert.equal(ok, false);
     assert.deepEqual(ran, ["second"]);

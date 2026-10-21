@@ -50,11 +50,27 @@ with `<TASK>_CRON`, e.g. `FIX_PAYEES_CRON=*/5 * * * *` or `WEALTHFOLIO_SYNC_CRON
 Tasks never run at the same time. Set `RUN_ON_START=true` to run every enabled task once at
 startup.
 
-## Telegram notifications
+## Notifications
 
-Set `TELEGRAM_BOT_TOKEN` (from [@BotFather](https://t.me/BotFather)) and `TELEGRAM_CHAT_ID` to
-get a message whenever a scheduled task fails. To find your chat id, send the bot a message and
-open `https://api.telegram.org/bot<TOKEN>/getUpdates`.
+You get a message whenever a scheduled task fails.
+
+Set `NOTIFICATION_URL` to one or more space-separated URLs. They use the same format as
+[Watchtower](https://containrrr.dev/watchtower/notifications/) (Shoutrrr), so existing Watchtower
+URLs can be reused:
+
+| Service  | URL                                                                           |
+| -------- | ----------------------------------------------------------------------------- |
+| Telegram | `telegram://BOT_TOKEN@telegram?chats=CHAT_ID[,CHAT_ID]`                       |
+| Discord  | `discord://TOKEN@WEBHOOK_ID`                                                  |
+| Slack    | `slack://hook:T-B-X@webhook` (from `https://hooks.slack.com/services/T/B/X`)  |
+| Email    | `smtp://USER:PASSWORD@HOST:PORT/?from=ADDRESS&to=ADDRESS[,ADDRESS]`           |
+| ntfy     | `ntfy://[USER:PASSWORD@]HOST/TOPIC`                                           |
+| Gotify   | `gotify://HOST/APP_TOKEN`                                                     |
+| Webhook  | `generic+https://HOST/PATH` (POSTs JSON `{"title": "...", "message": "..."}`) |
+
+URL-encode special characters in credentials (e.g. `@` → `%40`). Email uses implicit TLS on port
+465 and STARTTLS otherwise; set `encryption=None` to disable it. Add `?scheme=http` (ntfy) or
+`?disabletls=yes` (Gotify) for plain-HTTP servers.
 
 ## Logs
 

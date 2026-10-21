@@ -1,3 +1,5 @@
+import { parseNotificationUrls } from "./notify.js";
+
 const DEFAULT_CRON_EXPRESSION = "0 */4 * * *";
 
 export function stringToBoolean(value) {
@@ -51,12 +53,6 @@ export function collectAccountMapping(env, prefix) {
   return mapping;
 }
 
-function loadTelegram(env) {
-  if (!env.TELEGRAM_BOT_TOKEN && !env.TELEGRAM_CHAT_ID) return null;
-  requireEnv(env, ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]);
-  return { botToken: env.TELEGRAM_BOT_TOKEN, chatId: env.TELEGRAM_CHAT_ID };
-}
-
 export function loadConfig(env = process.env) {
   requireEnv(env, ["ACTUAL_SERVER_URL", "ACTUAL_SERVER_PASSWORD", "ACTUAL_SYNC_ID"]);
 
@@ -79,7 +75,7 @@ export function loadConfig(env = process.env) {
         ]),
     ),
     runOnStart: stringToBoolean(env.RUN_ON_START),
-    telegram: loadTelegram(env),
+    notifications: parseNotificationUrls(env.NOTIFICATION_URL),
     mortgage: null,
     payeeRename: null,
     ghostfolio: null,

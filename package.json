@@ -18,7 +18,8 @@
   "license": "MIT",
   "dependencies": {
     "@actual-app/api": "^26.10.0",
-    "node-cron": "^4.6.0"
+    "node-cron": "^4.6.0",
+    "nodemailer": "^10.1.7"
   },
   "allowScripts": {
     "better-sqlite3": false

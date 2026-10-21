@@ -98,12 +98,13 @@ describe("loadConfig scheduling and notifications", () => {
     assert.equal(config.runOnStart, true);
   });
 
-  it("configures Telegram only when both settings are present", () => {
-    assert.equal(loadConfig(base).telegram, null);
+  it("parses NOTIFICATION_URL", () => {
+    assert.deepEqual(loadConfig(base).notifications, []);
+    const config = loadConfig({ ...base, NOTIFICATION_URL: "ntfy://ntfy.sh/a discord://t@1" });
     assert.deepEqual(
-      loadConfig({ ...base, TELEGRAM_BOT_TOKEN: "t", TELEGRAM_CHAT_ID: "42" }).telegram,
-      { botToken: "t", chatId: "42" },
+      config.notifications.map((channel) => channel.name),
+      ["ntfy", "discord"],
     );
-    assert.throws(() => loadConfig({ ...base, TELEGRAM_BOT_TOKEN: "t" }), /TELEGRAM_CHAT_ID/);
+    assert.throws(() => loadConfig({ ...base, NOTIFICATION_URL: "x://y" }), /unsupported/);
   });
 });

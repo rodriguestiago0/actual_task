@@ -34,7 +34,9 @@ const scheduled = [...groups].map(([expression, names]) => {
 });
 
 if (enabled.length === 0) log.warn("No tasks enabled");
-if (config.telegram) log.info("Telegram notifications enabled");
+if (config.notifications.length > 0) {
+  log.info(`Notifications: ${config.notifications.map((channel) => channel.name).join(", ")}`);
+}
 if (config.runOnStart) await runTasks(config, enabled);
 
 for (const signal of ["SIGINT", "SIGTERM"]) {

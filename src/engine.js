@@ -56,7 +56,7 @@ function runExclusive(fn) {
   return run;
 }
 
-/** Runs the given tasks one after another; failures are logged and sent to Telegram. */
+/** Runs the given tasks one after another; failures are logged and notified. */
 export function runTasks(config, names, registry = tasks) {
   return runExclusive(async () => {
     let ok = true;
@@ -68,7 +68,7 @@ export function runTasks(config, names, registry = tasks) {
       } catch (err) {
         ok = false;
         log.error(`${name} failed:`, err);
-        await notify(config.telegram, `❌ actual-tasks: ${name} failed\n${err.message}`);
+        await notify(config.notifications, `❌ actual-tasks: ${name} failed\n${err.message}`);
       }
     }
     return ok;

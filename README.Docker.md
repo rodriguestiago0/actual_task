@@ -21,8 +21,7 @@ services:
       - CRON_EXPRESSION= # default "0 */4 * * *"
       - FIX_PAYEES_CRON=*/5 * * * * # optional per-task schedule
       - RUN_ON_START=false
-      - TELEGRAM_BOT_TOKEN= # optional, failure notifications
-      - TELEGRAM_CHAT_ID=
+      - NOTIFICATION_URL= # optional, e.g. telegram://TOKEN@telegram?chats=CHAT_ID
       - ENABLE_PAYEE_RENAME=true
       - PAYEE_REGEX_MATCH=
       - ENABLE_INTEREST_CALCULATION=true
