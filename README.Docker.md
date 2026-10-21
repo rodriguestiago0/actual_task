@@ -3,62 +3,40 @@
 When you're ready, start your application by running:
 `docker compose up --build`.
 
-Docker-comple.yaml example:
+Images are published for `linux/amd64`, `linux/arm64` and `linux/arm/v7` (the latter runs on Node 22).
 
-```
-version: '3'
+`docker-compose.yaml` example:
+
+```yaml
 services:
-  actual_server:
-    container_name: actualtasks
-    image: docker.io/rodriguestiago0/actualtasks
+  actual-tasks:
+    container_name: actual-tasks
+    image: docker.io/rodriguestiago0/actualtasks:latest
     environment:
-      - PUID=1003
-      - PGID=100
       - TZ=Europe/Lisbon
-      - INTEREST_RATE=
-      - MORTGAGE_PAYEE_ID=
-      - MORTGAGE_ACCOUNT_ID=
-      - MAIN_ACCOUNT_ID=
-      - PAYEE_REGEX_MATCH=
       - ACTUAL_SERVER_URL=
       - ACTUAL_SERVER_PASSWORD=
       - ACTUAL_FILE_PASSWORD=
       - ACTUAL_SYNC_ID=
-      - ENABLE_INTEREST_CALCULATION=true
+      - CRON_EXPRESSION= # default "0 */4 * * *"
+      - FIX_PAYEES_CRON=*/5 * * * * # optional per-task schedule
+      - RUN_ON_START=false
+      - NOTIFICATION_URL= # optional, e.g. telegram://TOKEN@telegram?chats=CHAT_ID
       - ENABLE_PAYEE_RENAME=true
-      - CRON_EXPRESSION= # default value is "0 */4 * * *"
-      - GHOSTFOLIO_ACCOUNT=
-      - GHOSTFOLIO_ACTUAL_ACCOUNT=
-      - GHOSTFOLIO_ACTUAL_PAYEE_NAME=
-      - ENABLE_GHOSTFOLIO_SYNC=true
-      - GHOSTFOLIO_SERVER_URL=
-      - GHOSTFOLIO_TOKEN=
+      - PAYEE_REGEX_MATCH=
+      - ENABLE_INTEREST_CALCULATION=true
+      - INTEREST_RATE=
+      - MORTGAGE_PAYEE_ID=
+      - MORTGAGE_PAYEE_NAME=
+      - MORTGAGE_ACCOUNT_ID=
+      - MAIN_ACCOUNT_ID=
+      - ENABLE_WEALTHFOLIO_SYNC=true
+      - WEALTHFOLIO_SERVER_URL=
+      - WEALTHFOLIO_ACCOUNT=
+      - WEALTHFOLIO_ACTUAL_ACCOUNT=
+      - WEALTHFOLIO_ACTUAL_PAYEE_NAME=
       - ENABLE_BANK_SYNC=true
     restart: unless-stopped
-```
-
-```
-docker run -d --name actualtasks \
-    - e 'INTEREST_RATE=' \
-    - e 'MORTGAGE_PAYEE_ID=' \
-    - e 'MAIN_ACCOUNT_ID=' \
-    - e 'MORTGAGE_ACCOUNT_ID=' \
-    - e' ENABLE_INTEREST_CALCULATION'=true \
-    - e 'ENABLE_PAYEE_RENAME'=true \
-    - e 'PAYEE_REGEX_MATCH=' \
-    - e 'ACTUAL_SERVER_URL= ' \
-    - e 'ACTUAL_SERVER_PASSWORD=' \
-    - e 'ACTUAL_FILE_PASSWORD=' \
-    - e 'ACTUAL_SYNC_ID=' \
-    - e 'CRON_EXPRESSION'= # default value is "0 */4 * '* *"' \
-    - e 'GHOSTFOLIO_ACCOUNT'= \
-    - e 'GHOSTFOLIO_ACTUAL_ACCOUNT'= \
-    - e 'GHOSTFOLIO_ACTUAL_PAYEE_NAME'= \
-    - e 'ENABLE_GHOSTFOLIO_SYNC'=true \
-    - e 'GHOSTFOLIO_SERVER_URL'= \
-    - e 'GHOSTFOLIO_TOKEN'= \
-    - e 'ENABLE_BANK_SYNC'=true \
-  --restart=on-failure rodriguestiago0/actualtasks:latest
 ```
 
 ### Using `docker-compose.yml`
@@ -79,28 +57,4 @@ Alternatively, you can use the provided `docker-compose.yml` to build and run th
    ```bash
    docker compose build --no-cache
    docker compose up -d
-   ```
-
-### Systemd Units (Optional)
-
-If you are running on a Linux system with `systemd` and want to start and stop the application automatically on a schedule, you can use the provided systemd service and timer units located in the `systemd/` directory.
-
-These units will automatically start and stop the `docker compose` stack based on the defined timers.
-
-1. Edit the service files (`systemd/actual-tasks-start.service` and `systemd/actual-tasks-stop.service`) and update the `WorkingDirectory` to the absolute path of this project directory:
-   ```ini
-   WorkingDirectory=/absolute/path/to/actual_task
-   ```
-2. Copy the `.service` and `.timer` files to your systemd directory:
-   ```bash
-   sudo cp systemd/*.service systemd/*.timer /etc/systemd/system/
-   ```
-3. Reload the systemd daemon:
-   ```bash
-   sudo systemctl daemon-reload
-   ```
-4. Enable and start the timers:
-   ```bash
-   sudo systemctl enable --now actual-tasks-start.timer
-   sudo systemctl enable --now actual-tasks-stop.timer
    ```

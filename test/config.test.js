@@ -90,3 +90,21 @@ describe("loadConfig", () => {
     assert.equal(config.wealthfolio.accounts.length, 1);
   });
 });
+
+describe("loadConfig scheduling and notifications", () => {
+  it("collects per-task cron overrides and RUN_ON_START", () => {
+    const config = loadConfig({ ...base, FIX_PAYEES_CRON: "*/5 * * * *", RUN_ON_START: "true" });
+    assert.deepEqual(config.taskCronExpressions, { "fix-payees": "*/5 * * * *" });
+    assert.equal(config.runOnStart, true);
+  });
+
+  it("parses NOTIFICATION_URL", () => {
+    assert.deepEqual(loadConfig(base).notifications, []);
+    const config = loadConfig({ ...base, NOTIFICATION_URL: "ntfy://ntfy.sh/a discord://t@1" });
+    assert.deepEqual(
+      config.notifications.map((channel) => channel.name),
+      ["ntfy", "discord"],
+    );
+    assert.throws(() => loadConfig({ ...base, NOTIFICATION_URL: "x://y" }), /unsupported/);
+  });
+});

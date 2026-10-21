@@ -2,6 +2,7 @@
 import { parseArgs } from "node:util";
 import { loadConfig, loadEnvFile } from "./src/config.js";
 import { tasks } from "./src/engine.js";
+import { silenceLibraryLogs } from "./src/log.js";
 
 const USAGE = `
   Usage
@@ -34,6 +35,7 @@ if (!task) {
   process.exit(1);
 }
 
+silenceLibraryLogs();
 try {
   loadEnvFile();
   const config = loadConfig();

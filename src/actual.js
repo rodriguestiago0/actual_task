@@ -1,11 +1,14 @@
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import * as api from "@actual-app/api";
-
-const debug = process.env.DEBUG ? console.debug : () => {};
+import * as actualApi from "@actual-app/api";
+import { log } from "./log.js";
 
 /** Downloads a fresh copy of the budget, runs fn(api), then syncs and always shuts down. */
-export async function withBudget({ serverURL, password, filePassword, syncId, dataDir }, fn) {
+export async function withBudget(
+  { serverURL, password, filePassword, syncId, dataDir },
+  fn,
+  api = actualApi,
+) {
   const budgetDir = join(dataDir, syncId);
   await rm(budgetDir, { recursive: true, force: true });
   await mkdir(budgetDir, { recursive: true });
@@ -26,17 +29,17 @@ export async function withBudget({ serverURL, password, filePassword, syncId, da
   }
 }
 
-export async function importTransactions(accountId, transactions) {
-  debug("Transactions to import:", transactions);
+export async function importTransactions(api, accountId, transactions) {
+  log.debug("Transactions to import:", transactions);
   const result = await api.importTransactions(accountId, transactions);
-  console.info(
+  log.info(
     `Imported into ${accountId}: ${result.added.length} added, ${result.updated.length} updated`,
   );
-  if (result.errors?.length) console.error("Actual import errors:", result.errors);
+  if (result.errors?.length) log.error("Actual import errors:", result.errors);
 }
 
 /** Most recent transaction in the last month, optionally filtered by payee. */
-export async function getLastTransaction(accountId, payeeId) {
+export async function getLastTransaction(api, accountId, payeeId) {
   const monthAgo = new Date();
   monthAgo.setMonth(monthAgo.getMonth() - 1);
 
