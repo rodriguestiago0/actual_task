@@ -1,9 +1,11 @@
 # Actual Tasks
-This is a project that contains two tasks. You can trigger them manually or setup a docker container that will run them periodically.
+
+This project contains several tasks. You can trigger them manually or setup a docker container that will run them periodically.
 
 ## Tasks:
 
 ### Fix payee name based on a regex expression:
+
 **Input**: `Compra 1234 Continente Porto Contactless`
 
 **Regex**: `Compra [0-9]{4}|Contactless|Compra:|[0-9]{4}-[0-9]{0,3}`
@@ -11,59 +13,67 @@ This is a project that contains two tasks. You can trigger them manually or setu
 **Output**: `Continente Porto`
 
 This task will also remove extra space in the payee name.
-**Input**: `Continente       Porto` 
+**Input**: `Continente       Porto`
 
-**Output**:  `Continente Porto` 
+**Output**: `Continente Porto`
 
 **Note:** In the end it will merge payees with the exact same name
 
 ### Create a transaction that deducts your payment mortgage
-To configure the correct interest rate is the % multiple by 1000
+
+Set `INTEREST_RATE` to the annual rate in % multiplied by 1000 (5.399% → `5399`).
 
 ### Sync ghostfolio account with Actual Budget account
+
 Create a new transaction to keep ghostfolio account balance and actual account balance in sync
 
 ### Sync wealthfolio account with Actual Budget account
+
 Create a new transaction to keep wealthfolio account balance and actual account balance in sync
 
 ### Run bank sync
-Run bank sync
 
+Run bank sync
 
 ## Setup
 
--   Clone this repo!
--   Install dependencies: `npm ci`
--   Copy `.sample.env` to `.env` and fill in the blanks
+- Requires Node.js 22+
+- Clone this repo and install dependencies: `npm ci`
+- Copy `.env.sample` to `.env` and fill in the blanks
+- Enable tasks with `ENABLE_PAYEE_RENAME`, `ENABLE_INTEREST_CALCULATION`, `ENABLE_GHOSTFOLIO_SYNC`, `ENABLE_WEALTHFOLIO_SYNC`, `ENABLE_BANK_SYNC`
+- Run a task: `node index.js fix-payees`, or run enabled tasks on `CRON_EXPRESSION` (default every 4 hours): `npm start`
 
 ### Get Ghostfolio API key for `.env`
 
 ```bash
 curl -X POST http://127.0.0.1:3333/api/v1/auth/anonymous -H "Content-Type: application/json" -d '{"accessToken": "<TOKEN>"}'
 ```
-## Some things worth noting
-
-This is a repository where I will be adding tasks to run periodically. For now both fixing payees name and calculate mortgage are enabled by default.
 
 ## Commands
 
-
 ```
   Usage
-    $ actual-tasks <command> <flags>
+    $ actual-tasks <command>
 
-  Commands & Options
-    config                        Print the location of actualplaid the config file
-    fix-payees                    Will apply the regex and replace for empty string
-    calculate-mortgage            Will check the mortgage balance and calculate the principal payment based on your montly payment
-    ghostfolio-sync               Will check ghostfolio and actual account balance and create a transaction in actual to sync balances.
-    wealthfolio-sync              Will check wealthfolio and actual account balance and create a transaction in actual to sync balances.
-    hold-amout-for-next-month     Sum all income transaction and hold it to next month budget 
-    bank-sync                     Will run the bank sync
-
-
-  Options for all commands
-    --user, -u       Specify the user to load configs for
-  Examples
-    $ actual-tasks config
+  Commands
+    fix-payees           Strip PAYEE_REGEX_MATCH from payee names and merge duplicates
+    calculate-mortgage   Record the principal part of the last mortgage payment
+    ghostfolio-sync      Sync Ghostfolio account balances into Actual
+    wealthfolio-sync     Sync Wealthfolio account balances into Actual
+    bank-sync            Run Actual bank sync
 ```
+
+## Development
+
+`npm run lint`, `npm run format`, `npm test`.
+
+## Releases
+
+When Dependabot bumps `@actual-app/api`, the PR is auto-merged after CI passes, a new patch
+release (`vX.Y.Z` git tag) is created and the Docker image is published to
+`rodriguestiago0/actualtasks` (`latest`, `X.Y.Z`, `X.Y`). The git tag is the version source of
+truth; `package.json` `version` is not updated.
+
+This requires a fine-grained PAT (Contents + Pull requests: read/write) saved as the
+**Dependabot** secret `RELEASE_TOKEN`, "Allow auto-merge" enabled, and the `CI` checks required
+on `main`.

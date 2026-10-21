@@ -1,30 +1,45 @@
 #!/usr/bin/env node
-import meow from 'meow';
-import engine from './cli.js';
+import { parseArgs } from "node:util";
+import { loadConfig, loadEnvFile } from "./src/config.js";
+import { tasks } from "./src/engine.js";
 
-const cli = meow(
-  `
-    Usage
-      $ actualtasks <command> <flags>
+const USAGE = `
+  Usage
+    $ actual-tasks <command>
 
-    Commands & Options
-      config                       Print the location of actualtasks the config file
-      fix-payees                   Apply the regex configured and remove it
-      calculate-mortgage            Calculate the principal from the mortgage payment
-      ghostfolio-sync              Sync Ghostfolio balance accounts with actual accounts
-      wealthfolio-sync             Sync Wealthfolio balance accounts with actual accounts
-      hold-amout-for-next-month    Call sync method
+  Commands
+    fix-payees           Strip PAYEE_REGEX_MATCH from payee names and merge duplicates
+    calculate-mortgage   Record the principal part of the last mortgage payment
+    ghostfolio-sync      Sync Ghostfolio account balances into Actual
+    wealthfolio-sync     Sync Wealthfolio account balances into Actual
+    bank-sync            Run Actual bank sync
 
+  Options
+    -h, --help           Show this help
+`;
 
-    Options for all commands
-      --user, -u       Specify the user to load configs for 
-
-    Examples
-      $ actualtasks config
-  `,
-  {
-    importMeta: import.meta,
+const { positionals, values } = parseArgs({
+  allowPositionals: true,
+  options: { help: { type: "boolean", short: "h" } },
 });
+const [command] = positionals;
 
-engine(cli.input[0]);
+if (values.help || !command) {
+  console.log(USAGE);
+  process.exit(command || values.help ? 0 : 1);
+}
+const task = tasks[command];
+if (!task) {
+  console.error(`Unknown command: ${command}\n${USAGE}`);
+  process.exit(1);
+}
 
+try {
+  loadEnvFile();
+  const config = loadConfig();
+  if (!task.enabled(config)) throw new Error(`${command} is not enabled`);
+  await task.run(config);
+} catch (err) {
+  console.error(err.message);
+  process.exitCode = 1;
+}

@@ -1,65 +1,29 @@
-const { fixPayees, calculateMortgage, ghostfolioSync, bankSync, wealthfolioSync } = require("./engine.js");
-var cron = require('node-cron');
-const parser = require('cron-parser');
-const { getAppConfigFromEnv } = require("./config");
+import cron from "node-cron";
+import { loadConfig, loadEnvFile } from "./src/config.js";
+import { runEnabledTasks, tasks } from "./src/engine.js";
 
-const appConfig = getAppConfigFromEnv();
+loadEnvFile();
+const config = loadConfig();
 
-var cronExpression = "0 */4 * * *";
-if (appConfig.CRON_EXPRESSION != "") {
-    cronExpression = appConfig.CRON_EXPRESSION;
-}
-console.info("Defined cron is: ", cronExpression)
-const interval = parser.CronExpressionParser.parse(cronExpression);
-console.info('Next run:', interval.next().toISOString());
-
-if (appConfig.ENABLE_INTEREST_CALCULATION) {
-    console.info("Task interest calculation enabled");
+console.info("Cron expression:", config.cronExpression);
+for (const [name, task] of Object.entries(tasks)) {
+  if (task.enabled(config)) console.info(`Task ${name} enabled`);
 }
 
-if (appConfig.ENABLE_PAYEE_RENAME) {
-    console.info("Task fix payees enabled");
+const task = cron.schedule(
+  config.cronExpression,
+  async () => {
+    await runEnabledTasks(config);
+    console.info("Next run:", task.getNextRun()?.toISOString());
+  },
+  { noOverlap: true },
+);
+console.info("Next run:", task.getNextRun()?.toISOString());
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.once(signal, async () => {
+    console.info(`Received ${signal}, stopping`);
+    await task.stop();
+    process.exit(0);
+  });
 }
-
-if (appConfig.ENABLE_GHOSTFOLIO_SYNC) {
-    console.info("Task ghostfolio sync enabled");
-}
-
-if (appConfig.ENABLE_WEALTHFOLIO_SYNC) {
-    console.info("Task wealthfolio sync enabled");
-}
-
-if (appConfig.ENABLE_BANK_SYNC) {
-    console.info("Task bank sync enabled");
-}
-
-cron.schedule(cronExpression, async () => {
-    if (appConfig.ENABLE_INTEREST_CALCULATION) {
-        console.info("Running interest calculation");
-        await calculateMortgage();
-    }
-
-    if (appConfig.ENABLE_PAYEE_RENAME) {
-        console.info("Running fix payees");
-        await fixPayees();
-    }
-
-    if (appConfig.ENABLE_GHOSTFOLIO_SYNC) {
-        console.info("Running ghostfolio sync");
-        await ghostfolioSync();
-    }
-
-    
-    if (appConfig.ENABLE_WEALTHFOLIO_SYNC) {
-        console.info("Running wealthfolio sync");
-        await wealthfolioSync();
-    }
-
-
-    if (appConfig.ENABLE_BANK_SYNC){
-        console.info("Running bank sync");
-        await bankSync();
-    }
-    console.info('Next run:', interval.next().toISOString());
-});
-

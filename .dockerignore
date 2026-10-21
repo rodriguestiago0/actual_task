@@ -32,3 +32,7 @@
 **/dist
 LICENSE
 README.md
+**/.github
+**/test
+**/temp_data_actual
+**/systemd
