@@ -33,7 +33,8 @@ Keeps the Actual account balance equal to the Wealthfolio balance with one adjus
 
 ### Run bank sync
 
-Run bank sync
+Runs Actual's bank sync for all linked accounts (GoCardless, SimpleFIN, ...), as if you clicked
+"Bank Sync" in the app.
 
 ## Setup
 
@@ -42,6 +43,7 @@ Run bank sync
 - Copy `.env.sample` to `.env` and fill in the blanks
 - Enable tasks with `ENABLE_PAYEE_RENAME`, `ENABLE_INTEREST_CALCULATION`, `ENABLE_GHOSTFOLIO_SYNC`, `ENABLE_WEALTHFOLIO_SYNC`, `ENABLE_BANK_SYNC`
 - Run a task: `node index.js fix-payees`, or run enabled tasks on a schedule: `npm start`
+- The budget is cached in `ACTUAL_DATA_DIR` (default `./temp_data_actual`)
 
 ## Scheduling
 
@@ -67,6 +69,8 @@ URLs can be reused:
 | ntfy     | `ntfy://[USER:PASSWORD@]HOST/TOPIC`                                           |
 | Gotify   | `gotify://HOST/APP_TOKEN`                                                     |
 | Webhook  | `generic+https://HOST/PATH` (POSTs JSON `{"title": "...", "message": "..."}`) |
+
+Telegram also accepts `channels=` instead of `chats=`, as used by older Watchtower URLs.
 
 URL-encode special characters in credentials (e.g. `@` → `%40`). Email uses implicit TLS on port
 465 and STARTTLS otherwise; set `encryption=None` to disable it. Add `?scheme=http` (ntfy) or

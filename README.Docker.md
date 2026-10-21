@@ -22,6 +22,7 @@ services:
       - FIX_PAYEES_CRON=*/5 * * * * # optional per-task schedule
       - RUN_ON_START=false
       - NOTIFICATION_URL= # optional, e.g. telegram://TOKEN@telegram?chats=CHAT_ID
+      - DEBUG= # set to 1 for verbose Actual API logs
       - ENABLE_PAYEE_RENAME=true
       - PAYEE_REGEX_MATCH=
       - ENABLE_INTEREST_CALCULATION=true
@@ -30,11 +31,18 @@ services:
       - MORTGAGE_PAYEE_NAME=
       - MORTGAGE_ACCOUNT_ID=
       - MAIN_ACCOUNT_ID=
+      - ENABLE_GHOSTFOLIO_SYNC=false
+      - GHOSTFOLIO_SERVER_URL=
+      - GHOSTFOLIO_TOKEN=
+      - GHOSTFOLIO_ACCOUNT=
+      - GHOSTFOLIO_ACTUAL_ACCOUNT=
+      - GHOSTFOLIO_ACTUAL_PAYEE_NAME=
       - ENABLE_WEALTHFOLIO_SYNC=true
       - WEALTHFOLIO_SERVER_URL=
       - WEALTHFOLIO_ACCOUNT=
       - WEALTHFOLIO_ACTUAL_ACCOUNT=
       - WEALTHFOLIO_ACTUAL_PAYEE_NAME=
+      # extra accounts: GHOSTFOLIO_ACCOUNT_1 / ..._ACTUAL_ACCOUNT_1 / ..._ACTUAL_PAYEE_NAME_1, _2, ...
       - ENABLE_BANK_SYNC=true
     restart: unless-stopped
 ```
