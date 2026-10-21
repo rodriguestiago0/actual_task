@@ -1,4 +1,5 @@
 import { formatDate, getLastTransaction, importTransactions } from "../actual.js";
+import { log } from "../log.js";
 
 /**
  * Principal part of a mortgage payment, in cents (positive reduces the debt).
@@ -13,22 +14,22 @@ export async function calculateMortgage(
   api,
   { payeeId, payeeName, mortgageAccountId, mainAccountId, interestRate },
 ) {
-  const lastPayment = await getLastTransaction(mainAccountId, payeeId);
+  const lastPayment = await getLastTransaction(api, mainAccountId, payeeId);
   if (!lastPayment) {
-    console.info("No mortgage payment in the last month, skipping");
+    log.info("No mortgage payment in the last month, skipping");
     return;
   }
 
-  const lastPrincipal = await getLastTransaction(mortgageAccountId, payeeId);
+  const lastPrincipal = await getLastTransaction(api, mortgageAccountId, payeeId);
   if (lastPrincipal && lastPrincipal.date.slice(0, 7) === lastPayment.date.slice(0, 7)) {
-    console.info("Principal already recorded for this payment");
+    log.info("Principal already recorded for this payment");
     return;
   }
 
   const balance = await api.getAccountBalance(mortgageAccountId);
   const amount = principalAmount(balance, lastPayment.amount, interestRate);
-  console.info(`Recording principal of ${amount / 100} for payment on ${lastPayment.date}`);
-  await importTransactions(mortgageAccountId, [
+  log.info(`Recording principal of ${amount / 100} for payment on ${lastPayment.date}`);
+  await importTransactions(api, mortgageAccountId, [
     { date: formatDate(), amount, payee_name: payeeName },
   ]);
 }

@@ -90,3 +90,20 @@ describe("loadConfig", () => {
     assert.equal(config.wealthfolio.accounts.length, 1);
   });
 });
+
+describe("loadConfig scheduling and notifications", () => {
+  it("collects per-task cron overrides and RUN_ON_START", () => {
+    const config = loadConfig({ ...base, FIX_PAYEES_CRON: "*/5 * * * *", RUN_ON_START: "true" });
+    assert.deepEqual(config.taskCronExpressions, { "fix-payees": "*/5 * * * *" });
+    assert.equal(config.runOnStart, true);
+  });
+
+  it("configures Telegram only when both settings are present", () => {
+    assert.equal(loadConfig(base).telegram, null);
+    assert.deepEqual(
+      loadConfig({ ...base, TELEGRAM_BOT_TOKEN: "t", TELEGRAM_CHAT_ID: "42" }).telegram,
+      { botToken: "t", chatId: "42" },
+    );
+    assert.throws(() => loadConfig({ ...base, TELEGRAM_BOT_TOKEN: "t" }), /TELEGRAM_CHAT_ID/);
+  });
+});

@@ -1,3 +1,5 @@
+import { log } from "../log.js";
+
 /** New name for a payee, or null when unchanged. */
 export function cleanPayeeName(name, regex) {
   const cleaned = name.replace(new RegExp(regex, "gis"), "").replace(/ {2,}/g, " ").trim();
@@ -20,13 +22,13 @@ export async function fixPayees(api, { regex }) {
     if (!payee.name.match(regex)) continue;
     const name = cleanPayeeName(payee.name, regex);
     if (name) {
-      console.info(`Rename payee "${payee.name}" to "${name}"`);
+      log.info(`Rename payee "${payee.name}" to "${name}"`);
       await api.updatePayee(payee.id, { name });
     }
   }
 
   for (const { name, ids } of findDuplicatePayees(await api.getPayees())) {
-    console.info(`Merge payees "${name}"`, ids);
+    log.info(`Merge payees "${name}"`, ids);
     const [target, ...rest] = ids;
     await api.mergePayees(target, rest);
   }

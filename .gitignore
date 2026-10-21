@@ -1,4 +1,4 @@
 node_modules/
 .vscode/
 .env
-temp_data_actual/
+temp_data_actual/temp_data_test/

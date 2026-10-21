@@ -51,6 +51,12 @@ export function collectAccountMapping(env, prefix) {
   return mapping;
 }
 
+function loadTelegram(env) {
+  if (!env.TELEGRAM_BOT_TOKEN && !env.TELEGRAM_CHAT_ID) return null;
+  requireEnv(env, ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]);
+  return { botToken: env.TELEGRAM_BOT_TOKEN, chatId: env.TELEGRAM_CHAT_ID };
+}
+
 export function loadConfig(env = process.env) {
   requireEnv(env, ["ACTUAL_SERVER_URL", "ACTUAL_SERVER_PASSWORD", "ACTUAL_SYNC_ID"]);
 
@@ -63,6 +69,17 @@ export function loadConfig(env = process.env) {
       dataDir: env.ACTUAL_DATA_DIR || "./temp_data_actual",
     },
     cronExpression: env.CRON_EXPRESSION || DEFAULT_CRON_EXPRESSION,
+    // Per-task schedules, e.g. FIX_PAYEES_CRON -> { "fix-payees": "..." }.
+    taskCronExpressions: Object.fromEntries(
+      Object.entries(env)
+        .filter(([key, value]) => key.endsWith("_CRON") && value)
+        .map(([key, value]) => [
+          key.slice(0, -"_CRON".length).toLowerCase().replaceAll("_", "-"),
+          value,
+        ]),
+    ),
+    runOnStart: stringToBoolean(env.RUN_ON_START),
+    telegram: loadTelegram(env),
     mortgage: null,
     payeeRename: null,
     ghostfolio: null,
