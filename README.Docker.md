@@ -4,6 +4,7 @@ When you're ready, start your application by running:
 `docker compose up --build`.
 
 Docker-comple.yaml example:
+
 ```
 version: '3'
 services:
@@ -19,7 +20,7 @@ services:
       - MORTGAGE_ACCOUNT_ID=
       - MAIN_ACCOUNT_ID=
       - PAYEE_REGEX_MATCH=
-      - ACTUAL_SERVER_URL= 
+      - ACTUAL_SERVER_URL=
       - ACTUAL_SERVER_PASSWORD=
       - ACTUAL_FILE_PASSWORD=
       - ACTUAL_SYNC_ID=
@@ -69,6 +70,7 @@ Alternatively, you can use the provided `docker-compose.yml` to build and run th
    cp .env.sample .env
    ```
 2. Start the stack in the background:
+
    ```bash
    docker compose up -d --build
    ```
