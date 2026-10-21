@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [package-lock.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      api-version: ${{ steps.check.outputs.api-version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Check whether @actual-app/api changed
+        id: check
+        run: |
+          query='.packages["node_modules/@actual-app/api"].version'
+          new=$(jq -r "$query" package-lock.json)
+          old=$(git show HEAD^:package-lock.json 2>/dev/null | jq -r "$query" || echo none)
+          echo "@actual-app/api: $old -> $new"
+          echo "api-version=$new" >> "$GITHUB_OUTPUT"
+          if [ "$old" != "$new" ] || [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: detect
+    if: needs.detect.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compute next patch tag
+        id: tag
+        run: |
+          latest=$(git tag --list 'v*' --sort=-version:refname | head -n1)
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          echo "tag=v${major:-1}.${minor:-0}.$(( ${patch:-0} + 1 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        run: >-
+          gh release create "$TAG" --target "$GITHUB_SHA" --generate-notes
+          --notes "Built with @actual-app/api $API_VERSION."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          API_VERSION: ${{ needs.detect.outputs.api-version }}
+
+  docker:
+    needs: release
+    uses: ./.github/workflows/docker-image.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}
+    secrets: inherit
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
