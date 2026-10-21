@@ -25,11 +25,11 @@ Set `INTEREST_RATE` to the annual rate in % multiplied by 1000 (5.399% → `5399
 
 ### Sync ghostfolio account with Actual Budget account
 
-Create a new transaction to keep ghostfolio account balance and actual account balance in sync
+Keeps the Actual account balance equal to the Ghostfolio balance with one adjustment transaction per month (added on the first sync, updated afterwards).
 
 ### Sync wealthfolio account with Actual Budget account
 
-Create a new transaction to keep wealthfolio account balance and actual account balance in sync
+Keeps the Actual account balance equal to the Wealthfolio balance with one adjustment transaction per month (added on the first sync, updated afterwards).
 
 ### Run bank sync
 
@@ -41,7 +41,24 @@ Run bank sync
 - Clone this repo and install dependencies: `npm ci`
 - Copy `.env.sample` to `.env` and fill in the blanks
 - Enable tasks with `ENABLE_PAYEE_RENAME`, `ENABLE_INTEREST_CALCULATION`, `ENABLE_GHOSTFOLIO_SYNC`, `ENABLE_WEALTHFOLIO_SYNC`, `ENABLE_BANK_SYNC`
-- Run a task: `node index.js fix-payees`, or run enabled tasks on `CRON_EXPRESSION` (default every 4 hours): `npm start`
+- Run a task: `node index.js fix-payees`, or run enabled tasks on a schedule: `npm start`
+
+## Scheduling
+
+All enabled tasks run on `CRON_EXPRESSION` (default `0 */4 * * *`). Give a task its own schedule
+with `<TASK>_CRON`, e.g. `FIX_PAYEES_CRON=*/5 * * * *` or `WEALTHFOLIO_SYNC_CRON=0 8 * * *`.
+Tasks never run at the same time. Set `RUN_ON_START=true` to run every enabled task once at
+startup.
+
+## Telegram notifications
+
+Set `TELEGRAM_BOT_TOKEN` (from [@BotFather](https://t.me/BotFather)) and `TELEGRAM_CHAT_ID` to
+get a message whenever a scheduled task fails. To find your chat id, send the bot a message and
+open `https://api.telegram.org/bot<TOKEN>/getUpdates`.
+
+## Logs
+
+Output is timestamped. The Actual API's own verbose logging is hidden unless `DEBUG=1`.
 
 ### Get Ghostfolio API key for `.env`
 
