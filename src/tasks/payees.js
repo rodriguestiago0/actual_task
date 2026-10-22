@@ -19,7 +19,6 @@ export function findDuplicatePayees(payees) {
 
 export async function fixPayees(api, { regex }) {
   for (const payee of await api.getPayees()) {
-    if (!payee.name.match(regex)) continue;
     const name = cleanPayeeName(payee.name, regex);
     if (name) {
       log.info(`Rename payee "${payee.name}" to "${name}"`);
