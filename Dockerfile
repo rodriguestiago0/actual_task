@@ -30,7 +30,8 @@ COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY package*.json index.js index-cron.js ./
 COPY src ./src
 
-RUN mkdir temp_data_actual && chown node:node temp_data_actual
+# World-writable (sticky) so the container also runs with any --user UID.
+RUN mkdir temp_data_actual && chown node:node temp_data_actual && chmod 1777 temp_data_actual
 USER node
 
 CMD ["node", "index-cron.js"]
