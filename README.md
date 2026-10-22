@@ -1,64 +1,139 @@
 # Actual Tasks
 
-This project contains several tasks. You can trigger them manually or setup a docker container that will run them periodically.
+Maintenance tasks for an [Actual Budget](https://actualbudget.org) budget: clean up payee names,
+record mortgage principal, sync investment balances from Ghostfolio or Wealthfolio, and run bank
+sync. Run them once from the command line or on a schedule, either with Node.js or with Docker (see
+[README.Docker.md](README.Docker.md)).
 
-## Tasks:
+## Quick start
 
-### Fix payee name based on a regex expression:
+1. Requires Node.js 22+. Clone this repo and run `npm ci`.
+2. Copy `.env.sample` to `.env` and set:
+   - `ACTUAL_SERVER_URL` and `ACTUAL_SERVER_PASSWORD`
+   - `ACTUAL_SYNC_ID`, found in Actual under **Settings → Show advanced settings → Sync ID**
+   - `ACTUAL_FILE_PASSWORD`, only if the budget uses end-to-end encryption
+3. Enable the tasks you want (see [Tasks](#tasks)) and fill in their variables.
+4. Run one task: `node index.js fix-payees`. Run every enabled task on a schedule: `npm start`.
 
-**Input**: `Compra 1234 Continente Porto Contactless`
+A task only runs when its `ENABLE_*` variable is `true`, including when you run it by hand.
+`node index.js -h` lists the commands.
 
-**Regex**: `Compra [0-9]{4}|Contactless|Compra:|[0-9]{4}-[0-9]{0,3}`
+Each run downloads a fresh copy of the budget into `ACTUAL_DATA_DIR` (default
+`./temp_data_actual`), removing the previous copy first.
 
-**Output**: `Continente Porto`
+> **Back up your budget first.** Renaming and merging payees can't be undone.
 
-This task will also remove extra space in the payee name.
-**Input**: `Continente       Porto`
+## Tasks
 
-**Output**: `Continente Porto`
+| Command              | Enabled by                    |
+| -------------------- | ----------------------------- |
+| `fix-payees`         | `ENABLE_PAYEE_RENAME`         |
+| `calculate-mortgage` | `ENABLE_INTEREST_CALCULATION` |
+| `ghostfolio-sync`    | `ENABLE_GHOSTFOLIO_SYNC`      |
+| `wealthfolio-sync`   | `ENABLE_WEALTHFOLIO_SYNC`     |
+| `bank-sync`          | `ENABLE_BANK_SYNC`            |
 
-**Note:** In the end it will merge payees with the exact same name
+Account IDs are in the app's URL when you open an account (`/accounts/<ID>`). Actual doesn't show
+payee IDs in the app; get them from the API (`getPayees()`).
 
-### Create a transaction that deducts your payment mortgage
+### Fix payees
 
-Set `INTEREST_RATE` to the annual rate in % multiplied by 1000 (5.399% → `5399`).
+Removes every match of the regex `PAYEE_REGEX_MATCH` from payee names, collapses repeated spaces
+and trims the result. The match ignores case (flags `gis`).
 
-### Sync ghostfolio account with Actual Budget account
+| Regex                                                        | Before                                     | After              |
+| ------------------------------------------------------------ | ------------------------------------------ | ------------------ |
+| `Compra [0-9]{4}\|Contactless\|Compra:\|[0-9]{4}-[0-9]{0,3}` | `Compra 1234 Continente Porto Contactless` | `Continente Porto` |
+| (any)                                                        | `Continente       Porto`                   | `Continente Porto` |
 
-Keeps the Actual account balance equal to the Ghostfolio balance with one adjustment transaction per month (added on the first sync, updated afterwards).
+The task then **merges every pair of payees with exactly the same name**, not only the ones it
+renamed. Transfer payees are never merged.
 
-### Sync wealthfolio account with Actual Budget account
+### Calculate mortgage
 
-Keeps the Actual account balance equal to the Wealthfolio balance with one adjustment transaction per month (added on the first sync, updated afterwards).
+Records the principal part of your last mortgage payment in the mortgage account, which brings the
+debt balance down.
 
-### Run bank sync
+| Variable              | Meaning                                                     |
+| --------------------- | ----------------------------------------------------------- |
+| `MAIN_ACCOUNT_ID`     | Account the monthly payment leaves from                     |
+| `MORTGAGE_ACCOUNT_ID` | Account holding the (negative) mortgage balance             |
+| `MORTGAGE_PAYEE_ID`   | Payee of the monthly payment                                |
+| `MORTGAGE_PAYEE_NAME` | Name of that same payee, used for the principal transaction |
+| `INTEREST_RATE`       | Annual rate in % multiplied by 1000, so 5.399% is `5399`    |
+
+On each run the task:
+
+1. Finds the most recent payment to `MORTGAGE_PAYEE_ID` in `MAIN_ACCOUNT_ID` in the last month,
+   and skips if there is none.
+2. Skips if the mortgage account already has a transaction from that payee in the same month.
+3. Computes interest as `mortgage balance × rate / 12` and records `payment amount − interest` as a
+   positive transaction dated today.
+
+`MORTGAGE_PAYEE_NAME` must be the name of `MORTGAGE_PAYEE_ID`. Otherwise step 2 never finds the
+earlier transaction and the principal is recorded on every run.
+
+### Ghostfolio and Wealthfolio sync
+
+Keeps an Actual account's balance equal to an account's balance in
+[Ghostfolio](https://ghostfol.io) or [Wealthfolio](https://wealthfolio.app), using one adjustment
+transaction per month. The first sync in a month adds the transaction; later syncs update its
+amount.
+
+| Ghostfolio                     | Wealthfolio                     | Meaning                              |
+| ------------------------------ | ------------------------------- | ------------------------------------ |
+| `GHOSTFOLIO_SERVER_URL`        | `WEALTHFOLIO_SERVER_URL`        | Server URL, e.g. `http://host:3333`  |
+| `GHOSTFOLIO_TOKEN`             | —                               | Bearer token, see below              |
+| `GHOSTFOLIO_ACCOUNT`           | `WEALTHFOLIO_ACCOUNT`           | Account ID in Ghostfolio/Wealthfolio |
+| `GHOSTFOLIO_ACTUAL_ACCOUNT`    | `WEALTHFOLIO_ACTUAL_ACCOUNT`    | Actual account ID                    |
+| `GHOSTFOLIO_ACTUAL_PAYEE_NAME` | `WEALTHFOLIO_ACTUAL_PAYEE_NAME` | Payee of the adjustment transaction  |
+
+To sync more accounts, add the same three account variables with a `_1`, `_2`, ... suffix (e.g.
+`GHOSTFOLIO_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_PAYEE_NAME_1`). Numbering
+stops at the first set with a missing variable.
+
+The adjustment transaction is identified by its note, `actual-tasks balance sync`. If you change
+the note or reconcile the transaction, the next sync adds a new one.
+
+Wealthfolio is called without authentication. Before reading balances, the task asks Wealthfolio to
+refresh valuations (`POST /api/v1/portfolio/update`).
+
+#### Get the Ghostfolio token
+
+Exchange the security token you sign in to Ghostfolio with for a bearer token, and set the returned
+`authToken` as `GHOSTFOLIO_TOKEN`:
+
+```bash
+curl -X POST http://127.0.0.1:3333/api/v1/auth/anonymous \
+  -H "Content-Type: application/json" -d '{"accessToken": "<SECURITY_TOKEN>"}'
+```
+
+### Bank sync
 
 Runs Actual's bank sync for all linked accounts (GoCardless, SimpleFIN, ...), as if you clicked
-"Bank Sync" in the app.
-
-## Setup
-
-- Requires Node.js 22+
-- Clone this repo and install dependencies: `npm ci`
-- Copy `.env.sample` to `.env` and fill in the blanks
-- Enable tasks with `ENABLE_PAYEE_RENAME`, `ENABLE_INTEREST_CALCULATION`, `ENABLE_GHOSTFOLIO_SYNC`, `ENABLE_WEALTHFOLIO_SYNC`, `ENABLE_BANK_SYNC`
-- Run a task: `node index.js fix-payees`, or run enabled tasks on a schedule: `npm start`
-- The budget is cached in `ACTUAL_DATA_DIR` (default `./temp_data_actual`)
+**Bank Sync** in the app. Accounts must already be linked in Actual.
 
 ## Scheduling
 
-All enabled tasks run on `CRON_EXPRESSION` (default `0 */4 * * *`). Give a task its own schedule
-with `<TASK>_CRON`, e.g. `FIX_PAYEES_CRON=*/5 * * * *` or `WEALTHFOLIO_SYNC_CRON=0 8 * * *`.
-Tasks never run at the same time. Set `RUN_ON_START=true` to run every enabled task once at
-startup.
+`npm start` runs all enabled tasks on `CRON_EXPRESSION`, which defaults to `0 */4 * * *` (every 4
+hours, standard 5-field cron syntax). To give one task its own schedule, set a variable named after
+its command in upper case with `_CRON` appended:
+
+`CALCULATE_MORTGAGE_CRON`, `FIX_PAYEES_CRON`, `GHOSTFOLIO_SYNC_CRON`, `WEALTHFOLIO_SYNC_CRON`,
+`BANK_SYNC_CRON`
+
+Misspelled names are silently ignored. Tasks never run at the same time. Set `RUN_ON_START=true` to
+also run every enabled task once at startup. Schedules and transaction dates use the local time
+zone (`TZ`).
 
 ## Notifications
 
-You get a message whenever a scheduled task fails.
+When a task run by the scheduler fails, you get a message. Runs started from the command line don't
+send notifications.
 
 Set `NOTIFICATION_URL` to one or more space-separated URLs. They use the same format as
-[Watchtower](https://containrrr.dev/watchtower/notifications/) (Shoutrrr), so existing Watchtower
-URLs can be reused:
+[Watchtower](https://containrrr.dev/watchtower/notifications/) (Shoutrrr), so you can reuse existing
+Watchtower URLs:
 
 | Service  | URL                                                                           |
 | -------- | ----------------------------------------------------------------------------- |
@@ -70,47 +145,16 @@ URLs can be reused:
 | Gotify   | `gotify://HOST/APP_TOKEN`                                                     |
 | Webhook  | `generic+https://HOST/PATH` (POSTs JSON `{"title": "...", "message": "..."}`) |
 
-Telegram also accepts `channels=` instead of `chats=`, as used by older Watchtower URLs.
+Telegram also accepts `channels=` instead of `chats=`, as older Watchtower URLs use it.
 
 URL-encode special characters in credentials (e.g. `@` → `%40`). Email uses implicit TLS on port
-465 and STARTTLS otherwise; set `encryption=None` to disable it. Add `?scheme=http` (ntfy) or
-`?disabletls=yes` (Gotify) for plain-HTTP servers.
+465 and STARTTLS on other ports; set `encryption=None` to disable it. For plain-HTTP servers, add
+`?scheme=http` (ntfy) or `?disabletls=yes` (Gotify).
 
 ## Logs
 
 Output is timestamped. The Actual API's own verbose logging is hidden unless `DEBUG=1`.
 
-### Get Ghostfolio API key for `.env`
-
-```bash
-curl -X POST http://127.0.0.1:3333/api/v1/auth/anonymous -H "Content-Type: application/json" -d '{"accessToken": "<TOKEN>"}'
-```
-
-## Commands
-
-```
-  Usage
-    $ actual-tasks <command>
-
-  Commands
-    fix-payees           Strip PAYEE_REGEX_MATCH from payee names and merge duplicates
-    calculate-mortgage   Record the principal part of the last mortgage payment
-    ghostfolio-sync      Sync Ghostfolio account balances into Actual
-    wealthfolio-sync     Sync Wealthfolio account balances into Actual
-    bank-sync            Run Actual bank sync
-```
-
 ## Development
 
-`npm run lint`, `npm run format`, `npm test`.
-
-## Releases
-
-When Dependabot bumps `@actual-app/api`, the PR is auto-merged after CI passes, a new patch
-release (`vX.Y.Z` git tag) is created and the Docker image is published to
-`rodriguestiago0/actualtasks` (`latest`, `X.Y.Z`, `X.Y`). The git tag is the version source of
-truth; `package.json` `version` is not updated.
-
-This requires a fine-grained PAT (Contents + Pull requests: read/write) saved as the
-**Dependabot** secret `RELEASE_TOKEN`, "Allow auto-merge" enabled, and the `CI` checks required
-on `main`.
+`npm run lint`, `npm run format`, `npm test`. Release process: [RELEASING.md](RELEASING.md).

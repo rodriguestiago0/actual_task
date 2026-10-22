@@ -1,11 +1,13 @@
-### Building and running your application
+# Running with Docker
 
-When you're ready, start your application by running:
-`docker compose up --build`.
+The image `rodriguestiago0/actualtasks` is published for `linux/amd64`, `linux/arm64` and
+`linux/arm/v7` (the arm/v7 image runs on Node 22). See [README.md](README.md) for what each
+variable does.
 
-Images are published for `linux/amd64`, `linux/arm64` and `linux/arm/v7` (the latter runs on Node 22).
+## Published image
 
-`docker-compose.yaml` example:
+Example `docker-compose.yaml`. Enable only the tasks you have filled in: an enabled task with
+missing variables stops the container at startup.
 
 ```yaml
 services:
@@ -13,19 +15,19 @@ services:
     container_name: actual-tasks
     image: docker.io/rodriguestiago0/actualtasks:latest
     environment:
-      - TZ=Europe/Lisbon
+      - TZ=Europe/Lisbon # used for schedules and transaction dates
       - ACTUAL_SERVER_URL=
       - ACTUAL_SERVER_PASSWORD=
-      - ACTUAL_FILE_PASSWORD=
       - ACTUAL_SYNC_ID=
+      - ACTUAL_FILE_PASSWORD= # optional, for end-to-end encrypted budgets
       - CRON_EXPRESSION= # default "0 */4 * * *"
-      - FIX_PAYEES_CRON=*/5 * * * * # optional per-task schedule
+      - FIX_PAYEES_CRON= # optional per-task schedule, e.g. */5 * * * *
       - RUN_ON_START=false
       - NOTIFICATION_URL= # optional, e.g. telegram://TOKEN@telegram?chats=CHAT_ID
       - DEBUG= # set to 1 for verbose Actual API logs
-      - ENABLE_PAYEE_RENAME=true
+      - ENABLE_PAYEE_RENAME=false
       - PAYEE_REGEX_MATCH=
-      - ENABLE_INTEREST_CALCULATION=true
+      - ENABLE_INTEREST_CALCULATION=false
       - INTEREST_RATE=
       - MORTGAGE_PAYEE_ID=
       - MORTGAGE_PAYEE_NAME=
@@ -37,32 +39,34 @@ services:
       - GHOSTFOLIO_ACCOUNT=
       - GHOSTFOLIO_ACTUAL_ACCOUNT=
       - GHOSTFOLIO_ACTUAL_PAYEE_NAME=
-      - ENABLE_WEALTHFOLIO_SYNC=true
+      - ENABLE_WEALTHFOLIO_SYNC=false
       - WEALTHFOLIO_SERVER_URL=
       - WEALTHFOLIO_ACCOUNT=
       - WEALTHFOLIO_ACTUAL_ACCOUNT=
       - WEALTHFOLIO_ACTUAL_PAYEE_NAME=
-      # extra accounts: GHOSTFOLIO_ACCOUNT_1 / ..._ACTUAL_ACCOUNT_1 / ..._ACTUAL_PAYEE_NAME_1, _2, ...
-      - ENABLE_BANK_SYNC=true
+      # More Ghostfolio/Wealthfolio accounts: add the three account variables with _1, _2, ...
+      - ENABLE_BANK_SYNC=false
     restart: unless-stopped
 ```
 
-### Using `docker-compose.yml`
+Run a single task once in the running container:
 
-Alternatively, you can use the provided `docker-compose.yml` to build and run the application. It automatically uses the `.env` file for configuration variables.
+```bash
+docker exec actual-tasks node index.js bank-sync
+```
 
-1. Ensure you have copied `.env.sample` to `.env` and filled in your configuration values:
-   ```bash
-   cp .env.sample .env
-   ```
-2. Start the stack in the background:
+## Building from source
 
-   ```bash
-   docker compose up -d --build
-   ```
+The repo's `docker-compose.yml` builds the image locally and reads its configuration from `.env`:
 
-3. **Updating the Code**: If you pull new updates or modify the script code locally, you should rebuild the image without caching to ensure changes take effect:
-   ```bash
-   docker compose build --no-cache
-   docker compose up -d
-   ```
+```bash
+cp .env.sample .env   # then fill it in
+docker compose up -d --build
+```
+
+After pulling new code or changing it locally, rebuild:
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
