@@ -56,6 +56,9 @@ function runExclusive(fn) {
   return run;
 }
 
+/** Resolves once every queued task run has finished. */
+export const idle = () => queue;
+
 /** Runs the given tasks one after another; failures are logged and notified. */
 export function runTasks(config, names, registry = tasks) {
   return runExclusive(async () => {

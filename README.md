@@ -123,8 +123,9 @@ its command in upper case with `_CRON` appended:
 `CALCULATE_MORTGAGE_CRON`, `FIX_PAYEES_CRON`, `GHOSTFOLIO_SYNC_CRON`, `WEALTHFOLIO_SYNC_CRON`,
 `BANK_SYNC_CRON`
 
-Misspelled names are silently ignored. Tasks never run at the same time. Set `RUN_ON_START=true` to
-also run every enabled task once at startup. Schedules and transaction dates use the local time
+Names that match no task are logged as a warning and ignored. Tasks never run at the same time. Set `RUN_ON_START=true` to
+also run every enabled task once at startup. On `SIGTERM`/`SIGINT`, a running task finishes
+before the process exits. Schedules and transaction dates use the local time
 zone (`TZ`).
 
 ## Notifications

@@ -47,6 +47,7 @@ services:
       # More Ghostfolio/Wealthfolio accounts: add the three account variables with _1, _2, ...
       - ENABLE_BANK_SYNC=false
     restart: unless-stopped
+    stop_grace_period: 2m # lets a running task finish on docker stop
 ```
 
 Run a single task once in the running container:
