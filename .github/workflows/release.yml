@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
-    paths: [package-lock.json]
+    paths: [package-lock.json, Dockerfile, index.js, index-cron.js, "src/**"]
   workflow_dispatch:
 
 permissions:
@@ -18,19 +18,32 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      - name: Check whether @actual-app/api changed
+      # Release when anything that goes into the image changed: code, Dockerfile or runtime
+      # dependencies. Dev-only dependency updates don't need a new image.
+      - name: Check whether the image contents changed
         id: check
+        env:
+          BEFORE: ${{ github.event.before }}
         run: |
-          query='.packages["node_modules/@actual-app/api"].version'
-          new=$(jq -r "$query" package-lock.json)
-          old=$(git show HEAD^:package-lock.json 2>/dev/null | jq -r "$query" || echo none)
-          echo "@actual-app/api: $old -> $new"
-          echo "api-version=$new" >> "$GITHUB_OUTPUT"
-          if [ "$old" != "$new" ] || [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+          base=$BEFORE
+          git cat-file -e "$base^{commit}" 2>/dev/null || base=HEAD^
+          api='.packages["node_modules/@actual-app/api"].version'
+          runtime='.packages | with_entries(select(.key != "" and .value.dev != true))'
+          echo "api-version=$(jq -r "$api" package-lock.json)" >> "$GITHUB_OUTPUT"
+
+          changed=false
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            changed=true
+          elif ! git diff --quiet "$base" HEAD -- Dockerfile index.js index-cron.js src; then
+            echo "Code or Dockerfile changed"
+            changed=true
+          elif [ "$(git show "$base:package-lock.json" | jq -S "$runtime")" != "$(jq -S "$runtime" package-lock.json)" ]; then
+            echo "Runtime dependencies changed"
+            changed=true
           fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
   release:
     needs: detect
