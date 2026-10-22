@@ -21,7 +21,8 @@ export async function calculateMortgage(
   }
 
   const lastPrincipal = await getLastTransaction(api, mortgageAccountId, payeeId);
-  if (lastPrincipal && lastPrincipal.date.slice(0, 7) === lastPayment.date.slice(0, 7)) {
+  // The principal is dated when it was recorded, which can be in the month after the payment.
+  if (lastPrincipal && lastPrincipal.date >= lastPayment.date) {
     log.info("Principal already recorded for this payment");
     return;
   }

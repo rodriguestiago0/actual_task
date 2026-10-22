@@ -20,10 +20,11 @@ jobs:
 
       # RELEASE_TOKEN (a PAT stored as a Dependabot secret) is used instead of GITHUB_TOKEN
       # so the resulting merge to main triggers the release workflow.
+      # Only @actual-app/api and patch updates merge on their own; review everything else.
       - name: Approve and enable auto-merge
         if: >-
           contains(steps.metadata.outputs.dependency-names, '@actual-app/api') ||
-          steps.metadata.outputs.update-type != 'version-update:semver-major'
+          steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: |
           gh pr review --approve "$PR_URL"
           gh pr merge --squash --auto "$PR_URL"

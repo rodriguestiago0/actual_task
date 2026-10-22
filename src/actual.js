@@ -44,7 +44,11 @@ export async function getLastTransaction(api, accountId, payeeId) {
   monthAgo.setMonth(monthAgo.getMonth() - 1);
 
   const transactions = await api.getTransactions(accountId, formatDate(monthAgo), formatDate());
-  return transactions.find((t) => !payeeId || t.payee === payeeId) ?? null;
+  return (
+    transactions
+      .filter((t) => !payeeId || t.payee === payeeId)
+      .toSorted((a, b) => b.date.localeCompare(a.date))[0] ?? null
+  );
 }
 
 /** YYYY-MM-DD in local time. */

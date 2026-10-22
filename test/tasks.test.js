@@ -42,6 +42,32 @@ describe("calculateMortgage", () => {
     assert.equal(callsTo(api, "importTransactions").length, 0);
   });
 
+  it("does nothing when the principal was recorded in the month after the payment", async () => {
+    const api = fakeApi({
+      transactions: {
+        main: [{ payee: "bank", amount: -80_000, date: "2026-09-30" }],
+        loan: [{ payee: "bank", amount: 26_010, date: "2026-10-01" }],
+      },
+    });
+    await calculateMortgage(api, mortgage);
+    assert.equal(callsTo(api, "importTransactions").length, 0);
+  });
+
+  it("uses the newest payment and principal regardless of order", async () => {
+    const api = fakeApi({
+      transactions: {
+        main: [
+          { payee: "bank", amount: -80_000, date: "2026-09-30" },
+          { payee: "bank", amount: -80_000, date: "2026-10-30" },
+        ],
+        loan: [{ payee: "bank", amount: 26_010, date: "2026-10-01" }],
+      },
+      balances: { loan: -12_000_000 },
+    });
+    await calculateMortgage(api, mortgage);
+    assert.equal(callsTo(api, "importTransactions").length, 1);
+  });
+
   it("does nothing without a recent payment", async () => {
     const api = fakeApi();
     await calculateMortgage(api, mortgage);
@@ -83,6 +109,12 @@ describe("fixPayees", () => {
     await fixPayees(api, { regex: "Compra [0-9]{4}" });
     assert.deepEqual(callsTo(api, "updatePayee"), [["updatePayee", "2", { name: "Cafe" }]]);
     assert.deepEqual(callsTo(api, "mergePayees"), [["mergePayees", "1", ["2"]]]);
+  });
+
+  it("matches payee names case-insensitively", async () => {
+    const api = fakeApi({ payees: [{ id: "1", name: "compra 1234 Cafe" }] });
+    await fixPayees(api, { regex: "Compra [0-9]{4}" });
+    assert.deepEqual(callsTo(api, "updatePayee"), [["updatePayee", "1", { name: "Cafe" }]]);
   });
 });
 
