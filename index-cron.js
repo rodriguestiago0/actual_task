@@ -1,6 +1,12 @@
 import cron from "node-cron";
 import { loadConfig, loadEnvFile } from "./src/config.js";
-import { enabledTaskNames, idle, runTasks, tasks } from "./src/engine.js";
+import {
+  enabledTaskNames,
+  idle,
+  runTasks,
+  scheduleGroups,
+  unknownCronVariables,
+} from "./src/engine.js";
 import { log, silenceLibraryLogs } from "./src/log.js";
 
 loadEnvFile();
@@ -8,22 +14,11 @@ silenceLibraryLogs();
 const config = loadConfig();
 const enabled = enabledTaskNames(config);
 
-for (const name of Object.keys(config.taskCronExpressions)) {
-  if (!Object.hasOwn(tasks, name)) {
-    log.warn(`Ignoring ${name.toUpperCase().replaceAll("-", "_")}_CRON: no task named "${name}"`);
-  }
+for (const variable of unknownCronVariables(config)) {
+  log.warn(`Ignoring ${variable}: no task with that name`);
 }
 
-// Group tasks by schedule: <TASK>_CRON overrides CRON_EXPRESSION.
-const groups = Map.groupBy(
-  enabled,
-  (name) => config.taskCronExpressions[name] ?? config.cronExpression,
-);
-for (const expression of groups.keys()) {
-  if (!cron.validate(expression)) throw new Error(`Invalid cron expression: "${expression}"`);
-}
-
-const scheduled = [...groups].map(([expression, names]) => {
+const scheduled = [...scheduleGroups(config, enabled)].map(([expression, names]) => {
   const task = cron.schedule(
     expression,
     async () => {

@@ -1,3 +1,4 @@
+import cron from "node-cron";
 import { withBudget } from "./actual.js";
 import { log } from "./log.js";
 import { notify } from "./notify.js";
@@ -45,6 +46,25 @@ export const tasks = {
 
 export function enabledTaskNames(config) {
   return Object.keys(tasks).filter((name) => tasks[name].enabled(config));
+}
+
+/** <TASK>_CRON variables that match no task, e.g. FIX_PAYEE_CRON. */
+export function unknownCronVariables(config, registry = tasks) {
+  return Object.keys(config.taskCronExpressions)
+    .filter((name) => !Object.hasOwn(registry, name))
+    .map((name) => `${name.toUpperCase().replaceAll("-", "_")}_CRON`);
+}
+
+/** Groups task names by schedule: <TASK>_CRON overrides CRON_EXPRESSION. Throws on invalid cron. */
+export function scheduleGroups(config, names) {
+  const groups = Map.groupBy(
+    names,
+    (name) => config.taskCronExpressions[name] ?? config.cronExpression,
+  );
+  for (const expression of groups.keys()) {
+    if (!cron.validate(expression)) throw new Error(`Invalid cron expression: "${expression}"`);
+  }
+  return groups;
 }
 
 // The Actual API holds a single open budget, so tasks must never run concurrently,
