@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import { withBudget } from "../src/actual.js";
-import { runTasks } from "../src/engine.js";
+import { idle, runTasks } from "../src/engine.js";
 import { parseNotificationUrls } from "../src/notify.js";
 import { callsTo, fakeApi } from "./fake-api.js";
 
@@ -30,6 +30,15 @@ describe("withBudget", () => {
     );
     assert.equal(callsTo(api, "shutdown").length, 1);
     assert.equal(callsTo(api, "sync").length, 0);
+  });
+
+  it("reports the callback's error when shutdown also fails", async () => {
+    const api = fakeApi();
+    api.shutdown = async () => Promise.reject(new Error("shutdown failed"));
+    await assert.rejects(
+      withBudget(actualConfig, async () => Promise.reject(new Error("boom")), api),
+      /boom/,
+    );
   });
 });
 
@@ -63,5 +72,20 @@ describe("runTasks", () => {
     const registry = { a: slow, b: slow };
     await Promise.all([runTasks({}, ["a"], registry), runTasks({}, ["b"], registry)]);
     assert.equal(maxRunning, 1);
+  });
+
+  it("idle waits for the running batch", async () => {
+    let finished = false;
+    const registry = {
+      slow: {
+        run: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          finished = true;
+        },
+      },
+    };
+    runTasks({}, ["slow"], registry);
+    await idle();
+    assert.equal(finished, true);
   });
 });

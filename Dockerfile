@@ -1,10 +1,8 @@
-ARG NODE_VERSION=24.11.0
+# Versions are written out (not ARGs) so Dependabot can update them.
+FROM node:24.22.1-alpine AS node-amd64
+FROM node:24.22.1-alpine AS node-arm64
 # Node 24 has no 32-bit ARM images, so linux/arm/v7 is built on Node 22 LTS.
-ARG NODE_ARM32_VERSION=22.23.4
-
-FROM node:${NODE_VERSION}-alpine AS node-amd64
-FROM node:${NODE_VERSION}-alpine AS node-arm64
-FROM node:${NODE_ARM32_VERSION}-alpine AS node-arm
+FROM node:22.23.4-alpine AS node-arm
 
 FROM node-${TARGETARCH} AS deps
 WORKDIR /usr/src/app

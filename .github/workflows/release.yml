@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Two quick pushes to main would otherwise compute the same tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   detect:
     runs-on: ubuntu-latest
@@ -45,9 +50,13 @@ jobs:
           fi
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
-  release:
+  ci:
     needs: detect
     if: needs.detect.outputs.changed == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: [detect, ci]
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -1,6 +1,7 @@
 {
   "name": "actual-tasks",
   "version": "1.1.31",
+  "private": true,
   "description": "Run some tasks that interact with Actual Budget",
   "type": "module",
   "main": "index-cron.js",

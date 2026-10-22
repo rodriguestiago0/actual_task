@@ -35,9 +35,9 @@ if (!task) {
   process.exit(1);
 }
 
-silenceLibraryLogs();
 try {
   loadEnvFile();
+  silenceLibraryLogs();
   const config = loadConfig();
   if (!task.enabled(config)) throw new Error(`${command} is not enabled`);
   await task.run(config);

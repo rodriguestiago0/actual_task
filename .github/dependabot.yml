@@ -14,6 +14,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Node majors are bumped by hand: arm/v7 has to stay on the newest major with 32-bit ARM images.
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

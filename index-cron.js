@@ -1,12 +1,18 @@
 import cron from "node-cron";
 import { loadConfig, loadEnvFile } from "./src/config.js";
-import { enabledTaskNames, runTasks } from "./src/engine.js";
+import { enabledTaskNames, idle, runTasks, tasks } from "./src/engine.js";
 import { log, silenceLibraryLogs } from "./src/log.js";
 
-silenceLibraryLogs();
 loadEnvFile();
+silenceLibraryLogs();
 const config = loadConfig();
 const enabled = enabledTaskNames(config);
+
+for (const name of Object.keys(config.taskCronExpressions)) {
+  if (!Object.hasOwn(tasks, name)) {
+    log.warn(`Ignoring ${name.toUpperCase().replaceAll("-", "_")}_CRON: no task named "${name}"`);
+  }
+}
 
 // Group tasks by schedule: <TASK>_CRON overrides CRON_EXPRESSION.
 const groups = Map.groupBy(
@@ -37,12 +43,15 @@ if (enabled.length === 0) log.warn("No tasks enabled");
 if (config.notifications.length > 0) {
   log.info(`Notifications: ${config.notifications.map((channel) => channel.name).join(", ")}`);
 }
-if (config.runOnStart) await runTasks(config, enabled);
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, async () => {
     log.info(`Received ${signal}, stopping`);
     await Promise.all(scheduled.map((task) => task.stop()));
+    // Let a running task finish so its changes are synced before exiting.
+    await idle();
     process.exit(0);
   });
 }
+
+if (config.runOnStart) await runTasks(config, enabled);

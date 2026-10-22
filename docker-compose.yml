@@ -3,3 +3,5 @@ services:
     build: .
     env_file: .env
     restart: unless-stopped
+    # Lets a running task finish on docker stop.
+    stop_grace_period: 2m
