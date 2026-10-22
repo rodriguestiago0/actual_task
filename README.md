@@ -66,7 +66,8 @@ On each run the task:
 
 1. Finds the most recent payment to `MORTGAGE_PAYEE_ID` in `MAIN_ACCOUNT_ID` in the last month,
    and skips if there is none.
-2. Skips if the mortgage account already has a transaction from that payee in the same month.
+2. Skips if the mortgage account already has a transaction from that payee dated on or after
+   the payment.
 3. Computes interest as `mortgage balance × rate / 12` and records `payment amount − interest` as a
    positive transaction dated today.
 
