@@ -50,7 +50,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}},value=${{ inputs.tag || github.ref_name }}
             type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag || github.ref_name }}
-            type=raw,value=latest
+            # Not when re-publishing an old tag by hand; a manual run of Release still moves latest.
+            type=raw,value=latest,enable=${{ github.event_name != 'workflow_dispatch' || github.workflow == 'Release' }}
             type=sha
 
       - name: Build and push Docker image

@@ -21,9 +21,6 @@ FROM node-${TARGETARCH}
 ENV NODE_ENV=production
 WORKDIR /usr/src/app
 
-# Lets TZ (e.g. Europe/Lisbon) set the date used for new transactions.
-RUN apk add --no-cache tzdata
-
 COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY package*.json index.js index-cron.js ./
 COPY src ./src
