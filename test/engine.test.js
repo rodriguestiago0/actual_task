@@ -59,6 +59,24 @@ describe("runTasks", () => {
     assert.match(JSON.parse(fetch.mock.calls[0].arguments[1].body).text, /first failed\nbroken/);
   });
 
+  it("notifies once when a failed task succeeds again", async (t) => {
+    const fetch = mockFetch();
+    t.after(() => fetch.mock.restore());
+    let broken = true;
+    const registry = {
+      flaky: { run: async () => broken && Promise.reject(new Error("broken")) },
+    };
+    const texts = () => fetch.mock.calls.map((call) => JSON.parse(call.arguments[1].body).text);
+
+    await runTasks({ notifications }, ["flaky"], registry);
+    broken = false;
+    await runTasks({ notifications }, ["flaky"], registry);
+    await runTasks({ notifications }, ["flaky"], registry);
+
+    assert.equal(texts().length, 2);
+    assert.match(texts()[1], /flaky recovered/);
+  });
+
   it("never runs two batches at the same time", async () => {
     let running = 0;
     let maxRunning = 0;
