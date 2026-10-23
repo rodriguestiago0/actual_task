@@ -79,7 +79,10 @@ function runExclusive(fn) {
 /** Resolves once every queued task run has finished. */
 export const idle = () => queue;
 
-/** Runs the given tasks one after another; failures are logged and notified. */
+// Tasks whose last run failed, so the next successful run can be reported as a recovery.
+const failing = new Set();
+
+/** Runs the given tasks one after another; failures and recoveries are logged and notified. */
 export function runTasks(config, names, registry = tasks) {
   return runExclusive(async () => {
     let ok = true;
@@ -88,8 +91,12 @@ export function runTasks(config, names, registry = tasks) {
       try {
         await registry[name].run(config);
         log.info(`Finished ${name}`);
+        if (failing.delete(name)) {
+          await notify(config.notifications, `✅ actual-tasks: ${name} recovered`);
+        }
       } catch (err) {
         ok = false;
+        failing.add(name);
         log.error(`${name} failed:`, err);
         await notify(config.notifications, `❌ actual-tasks: ${name} failed\n${err.message}`);
       }

@@ -130,7 +130,8 @@ zone (`TZ`).
 
 ## Notifications
 
-When a task run by the scheduler fails, you get a message. Runs started from the command line don't
+When a task run by the scheduler fails, you get a message, and another one the next time it
+succeeds. Runs started from the command line don't
 send notifications.
 
 Set `NOTIFICATION_URL` to one or more space-separated URLs. They use the same format as
