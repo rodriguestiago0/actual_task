@@ -20,7 +20,7 @@
   "dependencies": {
     "@actual-app/api": "^26.10.0",
     "node-cron": "^4.6.0",
-    "nodemailer": "^10.2.0"
+    "nodemailer": "^10.2.1"
   },
   "allowScripts": {
     "better-sqlite3": false
