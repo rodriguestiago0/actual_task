@@ -24,8 +24,7 @@ Each run downloads a fresh copy of the budget into `ACTUAL_DATA_DIR` (default
 Add `--dry-run` (`-n`) to run a task without saving anything, e.g.
 `node index.js merge-rules --dry-run`. The task reads the budget and logs what it would do as usual;
 calls that would change the budget are skipped and counted, and nothing is synced. Imports are
-previewed with Actual's own dry run. Steps that depend on an earlier change don't show up: for
-example, `fix-payees` doesn't list the merges its renames would cause.
+previewed with Actual's own dry run.
 
 > **Back up your budget first.** Renaming and merging payees, and merging rules, can't be undone.
 

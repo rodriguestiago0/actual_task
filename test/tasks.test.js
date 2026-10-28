@@ -112,6 +112,18 @@ describe("fixPayees", () => {
     assert.deepEqual(callsTo(api, "mergePayees"), [["mergePayees", "1", ["2"]]]);
   });
 
+  it("finds the merges from the new names, even when renames aren't saved", async () => {
+    const api = fakeApi({
+      payees: [
+        { id: "1", name: "Cafe" },
+        { id: "2", name: "Compra 1234 Cafe" },
+      ],
+    });
+    api.updatePayee = async () => {};
+    await fixPayees(api, { regex: "Compra [0-9]{4}" });
+    assert.deepEqual(callsTo(api, "mergePayees"), [["mergePayees", "1", ["2"]]]);
+  });
+
   it("matches payee names case-insensitively", async () => {
     const api = fakeApi({ payees: [{ id: "1", name: "compra 1234 Cafe" }] });
     await fixPayees(api, { regex: "Compra [0-9]{4}" });

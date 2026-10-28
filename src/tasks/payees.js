@@ -18,15 +18,18 @@ export function findDuplicatePayees(payees) {
 }
 
 export async function fixPayees(api, { regex }) {
+  // Duplicates are found from the new names, so a dry run (where renames are skipped) lists them too.
+  const payees = [];
   for (const payee of await api.getPayees()) {
     const name = cleanPayeeName(payee.name, regex);
     if (name) {
       log.info(`Rename payee "${payee.name}" to "${name}"`);
       await api.updatePayee(payee.id, { name });
     }
+    payees.push(name ? { ...payee, name } : payee);
   }
 
-  for (const { name, ids } of findDuplicatePayees(await api.getPayees())) {
+  for (const { name, ids } of findDuplicatePayees(payees)) {
     log.info(`Merge payees "${name}"`, ids);
     const [target, ...rest] = ids;
     await api.mergePayees(target, rest);
