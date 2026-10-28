@@ -1,7 +1,7 @@
 # Actual Tasks
 
 Maintenance tasks for an [Actual Budget](https://actualbudget.org) budget: clean up payee names,
-record mortgage principal, sync investment balances from Ghostfolio or Wealthfolio, and run bank
+merge rules, record mortgage principal, sync investment balances from Ghostfolio or Wealthfolio, and run bank
 sync. Run them once from the command line or on a schedule, either with Node.js or with Docker (see
 [README.Docker.md](README.Docker.md)).
 
@@ -21,13 +21,14 @@ A task only runs when its `ENABLE_*` variable is `true`, including when you run 
 Each run downloads a fresh copy of the budget into `ACTUAL_DATA_DIR` (default
 `./temp_data_actual`), removing the previous copy first.
 
-> **Back up your budget first.** Renaming and merging payees can't be undone.
+> **Back up your budget first.** Renaming and merging payees, and merging rules, can't be undone.
 
 ## Tasks
 
 | Command              | Enabled by                    |
 | -------------------- | ----------------------------- |
 | `fix-payees`         | `ENABLE_PAYEE_RENAME`         |
+| `merge-rules`        | `ENABLE_RULE_MERGE`           |
 | `calculate-mortgage` | `ENABLE_INTEREST_CALCULATION` |
 | `ghostfolio-sync`    | `ENABLE_GHOSTFOLIO_SYNC`      |
 | `wealthfolio-sync`   | `ENABLE_WEALTHFOLIO_SYNC`     |
@@ -48,6 +49,29 @@ and trims the result. The match ignores case (flags `gis`).
 
 The task then **merges every pair of payees with exactly the same name**, not only the ones it
 renamed. Transfer payees are never merged.
+
+### Merge rules
+
+Folds rules that do the same thing into one rule, so you end up with one rule per payee and one per
+category:
+
+| Before                                                                                            | After                                                               |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `payee is Zara → category Clothes`<br>`payee is Mango → category Clothes`                         | `payee is one of Zara, Mango → category Clothes`                    |
+| `imported payee is Compra Zara Porto → payee Zara`<br>`imported payee contains ZARA → payee Zara` | `imported payee is Compra Zara Porto or contains ZARA → payee Zara` |
+
+Rules are merged when they are in the same stage, compare a single field with "is", "is one of" or
+"contains", and have exactly the same actions. The merged rule keeps one of the rules' IDs; the
+others are deleted. Other rules that are exact duplicates are deleted, keeping one.
+
+Merging changes the order Actual runs rules in, so rules that can match the same text with
+different actions are left alone and logged as a warning, for you to fix in Actual:
+
+- the same value, e.g. `payee is Doce Alto → Coffee` and `payee is Doce Alto → Restaurant`;
+- a "contains" value found in another rule's value, e.g. `imported payee contains Continente →
+Continente` and `imported payee is Continente Bom Dia → Bom Dia`.
+
+Set `RULE_MERGE_DRY_RUN=true` to only log what would be merged.
 
 ### Calculate mortgage
 
@@ -120,7 +144,7 @@ Runs Actual's bank sync for all linked accounts (GoCardless, SimpleFIN, ...), as
 hours, standard 5-field cron syntax). To give one task its own schedule, set a variable named after
 its command in upper case with `_CRON` appended:
 
-`CALCULATE_MORTGAGE_CRON`, `FIX_PAYEES_CRON`, `GHOSTFOLIO_SYNC_CRON`, `WEALTHFOLIO_SYNC_CRON`,
+`CALCULATE_MORTGAGE_CRON`, `FIX_PAYEES_CRON`, `MERGE_RULES_CRON`, `GHOSTFOLIO_SYNC_CRON`, `WEALTHFOLIO_SYNC_CRON`,
 `BANK_SYNC_CRON`
 
 Names that match no task are logged as a warning and ignored. Tasks never run at the same time. Set `RUN_ON_START=true` to

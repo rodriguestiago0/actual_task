@@ -9,6 +9,7 @@ import {
   fetchWealthfolioBalances,
   syncBalances,
 } from "./tasks/portfolio.js";
+import { mergeRules } from "./tasks/rules.js";
 
 /** Tasks in the order they run when scheduled together. Each is enabled when its config is set. */
 export const tasks = {
@@ -19,6 +20,10 @@ export const tasks = {
   "fix-payees": {
     enabled: (config) => config.payeeRename,
     run: (config) => withBudget(config.actual, (api) => fixPayees(api, config.payeeRename)),
+  },
+  "merge-rules": {
+    enabled: (config) => config.ruleMerge,
+    run: (config) => withBudget(config.actual, (api) => mergeRules(api, config.ruleMerge)),
   },
   "ghostfolio-sync": {
     enabled: (config) => config.ghostfolio,

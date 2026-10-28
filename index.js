@@ -10,6 +10,7 @@ const USAGE = `
 
   Commands
     fix-payees           Strip PAYEE_REGEX_MATCH from payee names and merge duplicates
+    merge-rules          Merge rules that differ only in the payee (or other value) they match
     calculate-mortgage   Record the principal part of the last mortgage payment
     ghostfolio-sync      Sync Ghostfolio account balances into Actual
     wealthfolio-sync     Sync Wealthfolio account balances into Actual

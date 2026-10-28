@@ -1,5 +1,5 @@
 /** Minimal in-memory stand-in for @actual-app/api, recording every call. */
-export function fakeApi({ transactions = {}, balances = {}, payees = [] } = {}) {
+export function fakeApi({ transactions = {}, balances = {}, payees = [], rules = [] } = {}) {
   const calls = [];
   const record =
     (name, result) =>
@@ -27,6 +27,11 @@ export function fakeApi({ transactions = {}, balances = {}, payees = [] } = {}) 
       );
     }),
     mergePayees: record("mergePayees"),
+    getCategories: record("getCategories", []),
+    getAccounts: record("getAccounts", []),
+    getRules: record("getRules", () => rules),
+    updateRule: record("updateRule"),
+    deleteRule: record("deleteRule"),
   };
 }
 

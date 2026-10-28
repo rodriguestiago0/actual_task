@@ -4,6 +4,7 @@ import { formatDate } from "../src/actual.js";
 import { calculateMortgage, principalAmount } from "../src/tasks/mortgage.js";
 import { cleanPayeeName, findDuplicatePayees, fixPayees } from "../src/tasks/payees.js";
 import { ADJUSTMENT_NOTE, syncBalances } from "../src/tasks/portfolio.js";
+import { mergeRules, planRuleMerges } from "../src/tasks/rules.js";
 import { callsTo, fakeApi } from "./fake-api.js";
 
 const today = formatDate();
@@ -115,6 +116,174 @@ describe("fixPayees", () => {
     const api = fakeApi({ payees: [{ id: "1", name: "compra 1234 Cafe" }] });
     await fixPayees(api, { regex: "Compra [0-9]{4}" });
     assert.deepEqual(callsTo(api, "updatePayee"), [["updatePayee", "1", { name: "Cafe" }]]);
+  });
+});
+
+const categoryRule = (id, op, value, category, stage = null) => ({
+  id,
+  stage,
+  conditionsOp: "and",
+  conditions: [{ field: "description", op, value, type: "id" }],
+  actions: [{ field: "category", op: "set", value: category, type: "id" }],
+});
+
+const payeeRule = (id, conditions, payee, conditionsOp = "and") => ({
+  id,
+  stage: "pre",
+  conditionsOp,
+  conditions: conditions.map(([op, value]) => ({
+    field: "imported_description",
+    op,
+    value,
+    type: "string",
+  })),
+  actions: [{ field: "description", op: "set", value: payee, type: "id" }],
+});
+
+describe("planRuleMerges", () => {
+  it("merges rules with the same actions into one is-one-of rule", () => {
+    const { merges, conflicts } = planRuleMerges([
+      categoryRule("2", "is", "mango", "clothes"),
+      categoryRule("1", "is", "zara", "clothes"),
+      categoryRule("3", "oneOf", ["zara", "asos"], "clothes"),
+      categoryRule("4", "is", "cafe", "coffee"),
+    ]);
+    assert.deepEqual(conflicts, []);
+    assert.deepEqual(merges, [
+      {
+        rule: categoryRule("1", "oneOf", ["mango", "zara", "asos"], "clothes"),
+        removeIds: ["2", "3"],
+      },
+    ]);
+  });
+
+  it("merges contains rules with an or", () => {
+    const { merges } = planRuleMerges([
+      payeeRule("1", [["is", "Compra Zara Porto"]], "zara"),
+      payeeRule("2", [["contains", "ZARA LISBOA"]], "zara"),
+      payeeRule(
+        "3",
+        [
+          ["oneOf", ["Zara Online", "compra zara porto"]],
+          ["contains", "Zara Pt"],
+        ],
+        "zara",
+        "or",
+      ),
+    ]);
+    assert.deepEqual(merges, [
+      {
+        rule: payeeRule(
+          "1",
+          [
+            ["oneOf", ["Compra Zara Porto", "Zara Online"]],
+            ["contains", "ZARA LISBOA"],
+            ["contains", "Zara Pt"],
+          ],
+          "zara",
+          "or",
+        ),
+        removeIds: ["2", "3"],
+      },
+    ]);
+  });
+
+  it("treats empty action options as none", () => {
+    const rule = categoryRule("1", "is", "zara", "clothes");
+    const { merges } = planRuleMerges([
+      rule,
+      {
+        ...categoryRule("2", "is", "mango", "clothes"),
+        actions: [{ ...rule.actions[0], options: { splitIndex: 0 } }],
+      },
+    ]);
+    assert.equal(merges.length, 1);
+  });
+
+  it("does not fold rules whose conditions must all match", () => {
+    const { merges } = planRuleMerges([
+      payeeRule("1", [["contains", "Zara"]], "zara"),
+      payeeRule(
+        "2",
+        [
+          ["contains", "Zara"],
+          ["contains", "Online"],
+        ],
+        "zara",
+      ),
+    ]);
+    assert.deepEqual(merges, []);
+  });
+
+  it("does not merge across stages", () => {
+    const { merges } = planRuleMerges([
+      categoryRule("1", "is", "zara", "clothes"),
+      categoryRule("2", "is", "mango", "clothes", "pre"),
+    ]);
+    assert.deepEqual(merges, []);
+  });
+
+  it("leaves rules alone when they match the same value with different actions", () => {
+    const doce = categoryRule("1", "is", "doce", "coffee");
+    const doceRestaurant = categoryRule("2", "is", "doce", "restaurant");
+    const { merges, conflicts } = planRuleMerges([
+      doce,
+      doceRestaurant,
+      categoryRule("3", "is", "ola", "coffee"),
+      categoryRule("4", "is", "pans", "restaurant"),
+    ]);
+    assert.deepEqual(merges, []);
+    assert.deepEqual(conflicts, [{ value: "doce", rules: [doce, doceRestaurant] }]);
+  });
+
+  it("leaves rules alone when a contains value is found in another payee's value", () => {
+    const continente = payeeRule("1", [["contains", "Continente"]], "continente");
+    const bomDia = payeeRule("2", [["is", "Continente Bom Dia"]], "bom-dia");
+    const { merges, conflicts } = planRuleMerges([
+      continente,
+      bomDia,
+      payeeRule("3", [["contains", "Modelo"]], "continente"),
+      payeeRule("4", [["is", "Bom Dia Porto"]], "bom-dia"),
+    ]);
+    assert.deepEqual(merges, []);
+    assert.deepEqual(conflicts, [{ value: "continente", rules: [continente, bomDia] }]);
+  });
+
+  it("deletes exact duplicates of other rules", () => {
+    const rule = (id) => ({
+      ...payeeRule(
+        id,
+        [
+          ["contains", "Cambao"],
+          ["contains", "Joaquim"],
+        ],
+        "p",
+      ),
+    });
+    assert.deepEqual(planRuleMerges([rule("2"), rule("1")]).merges, [
+      { rule: rule("1"), removeIds: ["2"] },
+    ]);
+  });
+});
+
+describe("mergeRules", () => {
+  const rules = () => [
+    categoryRule("1", "is", "zara", "clothes"),
+    categoryRule("2", "is", "mango", "clothes"),
+  ];
+
+  it("updates the kept rule and deletes the others", async () => {
+    const api = fakeApi({ rules: rules() });
+    await mergeRules(api, { dryRun: false });
+    assert.equal(callsTo(api, "updateRule").length, 1);
+    assert.deepEqual(callsTo(api, "deleteRule"), [["deleteRule", "2"]]);
+  });
+
+  it("changes nothing in a dry run", async () => {
+    const api = fakeApi({ rules: rules() });
+    await mergeRules(api, { dryRun: true });
+    assert.deepEqual(callsTo(api, "updateRule"), []);
+    assert.deepEqual(callsTo(api, "deleteRule"), []);
   });
 });
 
