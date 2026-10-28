@@ -66,7 +66,10 @@ category:
 | `imported payee is Compra Zara Porto → payee Zara`<br>`imported payee contains ZARA → payee Zara` | `imported payee is Compra Zara Porto or contains ZARA → payee Zara` |
 
 Rules are merged when they are in the same stage, compare a single field with "is", "is one of" or
-"contains", and have exactly the same actions. The merged rule keeps one of the rules' IDs; the
+"contains", and have exactly the same actions. Rules whose conditions must all match are merged too
+when they have the same actions and differ only in one "is"/"is one of" condition (payee first,
+then imported payee, account, category), e.g. `payee is Ana and amount < 0 → Loan` and `payee is
+Rui and amount < 0 → Loan` become `payee is one of Ana, Rui and amount < 0 → Loan`. The merged rule keeps one of the rules' IDs; the
 others are deleted. Other rules that are exact duplicates are deleted, keeping one.
 
 Merging changes the order Actual runs rules in, so rules that can match the same text with
