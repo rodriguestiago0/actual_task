@@ -28,7 +28,6 @@ services:
       - ENABLE_PAYEE_RENAME=false
       - PAYEE_REGEX_MATCH=
       - ENABLE_RULE_MERGE=false
-      - RULE_MERGE_DRY_RUN= # set to true to only log the merges
       - ENABLE_INTEREST_CALCULATION=false
       - INTEREST_RATE=
       - MORTGAGE_PAYEE_ID=
@@ -56,6 +55,12 @@ Run a single task once in the running container:
 
 ```bash
 docker exec actual-tasks node index.js bank-sync
+```
+
+Add `--dry-run` to see what a task would change without saving anything:
+
+```bash
+docker exec actual-tasks node index.js merge-rules --dry-run
 ```
 
 ## Building from source

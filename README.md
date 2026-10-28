@@ -21,6 +21,11 @@ A task only runs when its `ENABLE_*` variable is `true`, including when you run 
 Each run downloads a fresh copy of the budget into `ACTUAL_DATA_DIR` (default
 `./temp_data_actual`), removing the previous copy first.
 
+Add `--dry-run` (`-n`) to run a task without saving anything, e.g.
+`node index.js merge-rules --dry-run`. The task reads the budget and logs what it would do as usual;
+calls that would change the budget are skipped and counted, and nothing is synced. Imports are
+previewed with Actual's own dry run.
+
 > **Back up your budget first.** Renaming and merging payees, and merging rules, can't be undone.
 
 ## Tasks
@@ -70,8 +75,6 @@ different actions are left alone and logged as a warning, for you to fix in Actu
 - the same value, e.g. `payee is Doce Alto → Coffee` and `payee is Doce Alto → Restaurant`;
 - a "contains" value found in another rule's value, e.g. `imported payee contains Continente →
 Continente` and `imported payee is Continente Bom Dia → Bom Dia`.
-
-Set `RULE_MERGE_DRY_RUN=true` to only log what would be merged.
 
 ### Calculate mortgage
 

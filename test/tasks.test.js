@@ -112,6 +112,18 @@ describe("fixPayees", () => {
     assert.deepEqual(callsTo(api, "mergePayees"), [["mergePayees", "1", ["2"]]]);
   });
 
+  it("finds the merges from the new names, even when renames aren't saved", async () => {
+    const api = fakeApi({
+      payees: [
+        { id: "1", name: "Cafe" },
+        { id: "2", name: "Compra 1234 Cafe" },
+      ],
+    });
+    api.updatePayee = async () => {};
+    await fixPayees(api, { regex: "Compra [0-9]{4}" });
+    assert.deepEqual(callsTo(api, "mergePayees"), [["mergePayees", "1", ["2"]]]);
+  });
+
   it("matches payee names case-insensitively", async () => {
     const api = fakeApi({ payees: [{ id: "1", name: "compra 1234 Cafe" }] });
     await fixPayees(api, { regex: "Compra [0-9]{4}" });
@@ -267,23 +279,16 @@ describe("planRuleMerges", () => {
 });
 
 describe("mergeRules", () => {
-  const rules = () => [
-    categoryRule("1", "is", "zara", "clothes"),
-    categoryRule("2", "is", "mango", "clothes"),
-  ];
-
   it("updates the kept rule and deletes the others", async () => {
-    const api = fakeApi({ rules: rules() });
-    await mergeRules(api, { dryRun: false });
+    const api = fakeApi({
+      rules: [
+        categoryRule("1", "is", "zara", "clothes"),
+        categoryRule("2", "is", "mango", "clothes"),
+      ],
+    });
+    await mergeRules(api);
     assert.equal(callsTo(api, "updateRule").length, 1);
     assert.deepEqual(callsTo(api, "deleteRule"), [["deleteRule", "2"]]);
-  });
-
-  it("changes nothing in a dry run", async () => {
-    const api = fakeApi({ rules: rules() });
-    await mergeRules(api, { dryRun: true });
-    assert.deepEqual(callsTo(api, "updateRule"), []);
-    assert.deepEqual(callsTo(api, "deleteRule"), []);
   });
 });
 

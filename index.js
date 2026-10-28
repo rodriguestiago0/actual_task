@@ -17,12 +17,16 @@ const USAGE = `
     bank-sync            Run Actual bank sync
 
   Options
+    -n, --dry-run        Run the task without saving any change to the budget
     -h, --help           Show this help
 `;
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { help: { type: "boolean", short: "h" } },
+  options: {
+    help: { type: "boolean", short: "h" },
+    "dry-run": { type: "boolean", short: "n" },
+  },
 });
 const [command] = positionals;
 
@@ -41,6 +45,7 @@ try {
   silenceLibraryLogs();
   const config = loadConfig();
   if (!task.enabled(config)) throw new Error(`${command} is not enabled`);
+  config.actual.dryRun = values["dry-run"] ?? false;
   await task.run(config);
 } catch (err) {
   console.error(err.message);
