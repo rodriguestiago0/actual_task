@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
-import { withBudget } from "../src/actual.js";
+import { dryRunApi, withBudget } from "../src/actual.js";
 import { idle, runTasks } from "../src/engine.js";
 import { parseNotificationUrls } from "../src/notify.js";
 import { callsTo, fakeApi } from "./fake-api.js";
@@ -32,6 +32,25 @@ describe("withBudget", () => {
     assert.equal(callsTo(api, "sync").length, 0);
   });
 
+  it("in a dry run, skips changes and doesn't sync", async () => {
+    const api = fakeApi({ payees: [{ id: "1", name: "Cafe" }] });
+    let payees;
+    await withBudget(
+      { ...actualConfig, dryRun: true },
+      async (budget) => {
+        payees = await budget.getPayees();
+        await budget.updatePayee("1", { name: "Coffee" });
+        await budget.mergePayees("1", ["2"]);
+      },
+      api,
+    );
+    assert.deepEqual(payees, [{ id: "1", name: "Cafe" }]);
+    assert.deepEqual(
+      api.calls.map(([name]) => name),
+      ["init", "downloadBudget", "getPayees", "shutdown"],
+    );
+  });
+
   it("reports the callback's error when shutdown also fails", async () => {
     const api = fakeApi();
     api.shutdown = async () => Promise.reject(new Error("shutdown failed"));
@@ -39,6 +58,21 @@ describe("withBudget", () => {
       withBudget(actualConfig, async () => Promise.reject(new Error("boom")), api),
       /boom/,
     );
+  });
+});
+
+describe("dryRunApi", () => {
+  it("counts skipped calls and previews imports", async () => {
+    const api = fakeApi();
+    const skipped = new Map();
+    const budget = dryRunApi(api, skipped);
+    await budget.updateRule({ id: "1" });
+    await budget.updateRule({ id: "2" });
+    await budget.importTransactions("acc", [{ amount: 1 }]);
+    assert.deepEqual([...skipped], [["updateRule", 2]]);
+    assert.deepEqual(callsTo(api, "importTransactions"), [
+      ["importTransactions", "acc", [{ amount: 1 }], { defaultCleared: true, dryRun: true }],
+    ]);
   });
 });
 

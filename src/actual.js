@@ -3,9 +3,37 @@ import { join } from "node:path";
 import * as actualApi from "@actual-app/api";
 import { log } from "./log.js";
 
-/** Downloads a fresh copy of the budget, runs fn(api), then syncs and always shuts down. */
+// API calls that only read, made as usual in a dry run.
+const READS = /^(get|aqlQuery$|runQuery$|q$)/;
+
+/**
+ * The API with every call that would change the budget skipped and counted in `skipped`, except
+ * importTransactions, which runs as Actual's preview so its result can still be logged.
+ */
+export function dryRunApi(api, skipped) {
+  const wrap = (name, value) => {
+    if (typeof value !== "function" || READS.test(name)) return value;
+    if (name === "importTransactions") {
+      return (accountId, transactions, opts) =>
+        api.importTransactions(accountId, transactions, {
+          defaultCleared: true,
+          ...opts,
+          dryRun: true,
+        });
+    }
+    return async () => {
+      skipped.set(name, (skipped.get(name) ?? 0) + 1);
+    };
+  };
+  return Object.fromEntries(Object.entries(api).map(([name, value]) => [name, wrap(name, value)]));
+}
+
+/**
+ * Downloads a fresh copy of the budget, runs fn(api), then syncs and always shuts down. In a dry
+ * run, fn gets an API that can't change the budget, and nothing is synced.
+ */
 export async function withBudget(
-  { serverURL, password, filePassword, syncId, dataDir },
+  { serverURL, password, filePassword, syncId, dataDir, dryRun = false },
   fn,
   api = actualApi,
 ) {
@@ -21,9 +49,16 @@ export async function withBudget(
     throw new Error(`Actual Budget error: ${err.message}`, { cause: err });
   }
 
+  const skipped = new Map();
   try {
-    await fn(api);
-    await api.sync();
+    if (dryRun) {
+      await fn(dryRunApi(api, skipped));
+      const calls = [...skipped].map(([name, count]) => `${name} ×${count}`).join(", ");
+      log.info(`Dry run: nothing was saved${calls ? ` (skipped ${calls})` : ""}`);
+    } else {
+      await fn(api);
+      await api.sync();
+    }
   } catch (err) {
     await api.shutdown().catch(() => {});
     throw err;

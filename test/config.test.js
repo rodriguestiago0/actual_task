@@ -79,14 +79,8 @@ describe("loadConfig", () => {
   });
 
   it("configures rule merging", () => {
-    assert.equal(loadConfig(base).ruleMerge, null);
-    assert.deepEqual(loadConfig({ ...base, ENABLE_RULE_MERGE: "true" }).ruleMerge, {
-      dryRun: false,
-    });
-    assert.deepEqual(
-      loadConfig({ ...base, ENABLE_RULE_MERGE: "true", RULE_MERGE_DRY_RUN: "true" }).ruleMerge,
-      { dryRun: true },
-    );
+    assert.equal(loadConfig(base).ruleMerge, false);
+    assert.equal(loadConfig({ ...base, ENABLE_RULE_MERGE: "true" }).ruleMerge, true);
   });
 
   it("configures Wealthfolio", () => {

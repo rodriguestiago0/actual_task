@@ -145,7 +145,7 @@ async function describer(api) {
     `if ${describe(rule.conditions, rule.conditionsOp)} then ${describe(rule.actions, "and")}`;
 }
 
-export async function mergeRules(api, { dryRun }) {
+export async function mergeRules(api) {
   const { merges, conflicts } = planRuleMerges(await api.getRules());
   const describe = await describer(api);
 
@@ -157,14 +157,11 @@ export async function mergeRules(api, { dryRun }) {
   }
 
   for (const { rule, removeIds } of merges) {
-    log.info(
-      `${dryRun ? "Would merge" : "Merge"} ${removeIds.length + 1} rules into: ${describe(rule)}`,
-    );
-    if (dryRun) continue;
+    log.info(`Merge ${removeIds.length + 1} rules into: ${describe(rule)}`);
     await api.updateRule(rule);
     for (const id of removeIds) await api.deleteRule(id);
   }
 
   const removed = merges.reduce((count, { removeIds }) => count + removeIds.length, 0);
-  log.info(`${dryRun ? "Would remove" : "Removed"} ${removed} rules`);
+  log.info(`Removed ${removed} rules`);
 }

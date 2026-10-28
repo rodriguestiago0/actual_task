@@ -23,7 +23,7 @@ export const tasks = {
   },
   "merge-rules": {
     enabled: (config) => config.ruleMerge,
-    run: (config) => withBudget(config.actual, (api) => mergeRules(api, config.ruleMerge)),
+    run: (config) => withBudget(config.actual, mergeRules),
   },
   "ghostfolio-sync": {
     enabled: (config) => config.ghostfolio,
