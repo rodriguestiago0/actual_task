@@ -78,6 +78,7 @@ export function loadConfig(env = process.env) {
     notifications: parseNotificationUrls(env.NOTIFICATION_URL),
     mortgage: null,
     payeeRename: null,
+    ruleMerge: null,
     ghostfolio: null,
     wealthfolio: null,
     bankSync: stringToBoolean(env.ENABLE_BANK_SYNC),
@@ -108,6 +109,10 @@ export function loadConfig(env = process.env) {
   if (stringToBoolean(env.ENABLE_PAYEE_RENAME)) {
     requireEnv(env, ["PAYEE_REGEX_MATCH"]);
     config.payeeRename = { regex: env.PAYEE_REGEX_MATCH };
+  }
+
+  if (stringToBoolean(env.ENABLE_RULE_MERGE)) {
+    config.ruleMerge = { dryRun: stringToBoolean(env.RULE_MERGE_DRY_RUN) };
   }
 
   if (stringToBoolean(env.ENABLE_GHOSTFOLIO_SYNC)) {

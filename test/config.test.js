@@ -78,6 +78,17 @@ describe("loadConfig", () => {
     assert.throws(() => loadConfig({ ...env, MAIN_ACCOUNT_ID: "" }), /MAIN_ACCOUNT_ID/);
   });
 
+  it("configures rule merging", () => {
+    assert.equal(loadConfig(base).ruleMerge, null);
+    assert.deepEqual(loadConfig({ ...base, ENABLE_RULE_MERGE: "true" }).ruleMerge, {
+      dryRun: false,
+    });
+    assert.deepEqual(
+      loadConfig({ ...base, ENABLE_RULE_MERGE: "true", RULE_MERGE_DRY_RUN: "true" }).ruleMerge,
+      { dryRun: true },
+    );
+  });
+
   it("configures Wealthfolio", () => {
     const config = loadConfig({
       ...base,
