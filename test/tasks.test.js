@@ -212,6 +212,51 @@ describe("planRuleMerges", () => {
     assert.equal(merges.length, 1);
   });
 
+  it("merges rules that differ only in one condition, keeping the others", () => {
+    const loan = (id, payee, op = "lt") => ({
+      ...categoryRule(id, "is", payee, "loan"),
+      conditions: [
+        { field: "payee", op: "is", value: payee, type: "id" },
+        { field: "amount", op, value: 0, type: "number" },
+      ],
+    });
+    const { merges, conflicts } = planRuleMerges([
+      loan("1", "ana"),
+      loan("2", "rui"),
+      loan("3", "eva", "gt"),
+    ]);
+    assert.deepEqual(conflicts, []);
+    assert.deepEqual(merges, [
+      {
+        rule: {
+          ...loan("1", "ana"),
+          conditions: [
+            { field: "payee", op: "oneOf", value: ["ana", "rui"], type: "id" },
+            { field: "amount", op: "lt", value: 0, type: "number" },
+          ],
+        },
+        removeIds: ["2"],
+      },
+    ]);
+  });
+
+  it("leaves rules with the same other conditions alone when one value has different actions", () => {
+    const rule = (id, payee, category) => ({
+      ...categoryRule(id, "is", payee, category),
+      conditions: [
+        { field: "payee", op: "is", value: payee, type: "id" },
+        { field: "amount", op: "lt", value: 0, type: "number" },
+      ],
+    });
+    const { merges, conflicts } = planRuleMerges([
+      rule("1", "cuf", "doctors"),
+      rule("2", "cuf", "extra"),
+      rule("3", "lusiadas", "doctors"),
+    ]);
+    assert.deepEqual(merges, []);
+    assert.equal(conflicts.length, 1);
+  });
+
   it("does not fold rules whose conditions must all match", () => {
     const { merges } = planRuleMerges([
       payeeRule("1", [["contains", "Zara"]], "zara"),

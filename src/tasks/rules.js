@@ -14,13 +14,39 @@ const actionsKey = (rule) => rule.actions.map(canonical).sort().join("\n");
 
 const lower = (value) => (typeof value === "string" ? value.toLowerCase() : value);
 
+// The condition that varies between rules merged on several conditions, by preference.
+const VARYING_FIELDS = ["payee", "description", "imported_payee", "account", "category"];
+
+/**
+ * For a rule whose conditions must all match: one "is"/"is one of" condition that can vary between
+ * merged rules, with every other condition (the context) the same, e.g. "payee is A and amount
+ * < 0". Returns { field, type, exact, contains: [], context, index } or null.
+ */
+function contextMatcher({ conditions }) {
+  for (const field of VARYING_FIELDS) {
+    const onField = conditions.filter((c) => c.field === field);
+    if (onField.length !== 1) continue;
+    const [{ op, value, type, options }] = onField;
+    const values = op === "oneOf" ? value : [value];
+    if (!["is", "oneOf"].includes(op) || setOptions(options) || !Array.isArray(values)) continue;
+    if (values.length === 0 || values.some((v) => v == null || v === "")) continue;
+    const index = conditions.indexOf(onField[0]);
+    const context = conditions.filter((_, i) => i !== index);
+    return { field, type, exact: values, contains: [], context, index };
+  }
+  return null;
+}
+
 /**
  * What a rule matches, when it can be folded into another rule: one field compared with "is",
- * "is one of" or (for text) "contains", any of which may match. Returns { field, type, exact,
- * contains } or null.
+ * "is one of" or (for text) "contains", any of which may match, or one varying condition in a rule
+ * whose other conditions must all match too. Returns { field, type, exact, contains, context }
+ * or null.
  */
-function matcher({ conditions, conditionsOp }) {
-  if (conditions.length === 0 || (conditions.length > 1 && conditionsOp !== "or")) return null;
+function matcher(rule) {
+  const { conditions, conditionsOp } = rule;
+  if (conditions.length === 0) return null;
+  if (conditions.length > 1 && conditionsOp !== "or") return contextMatcher(rule);
   const [{ field, type }] = conditions;
   const exact = [];
   const contains = [];
@@ -33,11 +59,21 @@ function matcher({ conditions, conditionsOp }) {
     else if (op === "contains" && type === "string") contains.push(value);
     else return null;
   }
-  return { field, type, exact, contains };
+  return { field, type, exact, contains, context: [] };
 }
 
 /** The conditions matching any of the given values, using "or" when "contains" is needed. */
-function mergedConditions({ field, type }, exact, contains) {
+function mergedConditions(rule, { field, type, context, index }, exact, contains) {
+  if (context.length > 0) {
+    const condition =
+      exact.length === 1
+        ? { ...rule.conditions[index], op: "is", value: exact[0] }
+        : { ...rule.conditions[index], op: "oneOf", value: exact };
+    return {
+      conditionsOp: "and",
+      conditions: rule.conditions.map((c, i) => (i === index ? condition : c)),
+    };
+  }
   const conditions = [
     ...(exact.length === 1 ? [{ field, op: "is", value: exact[0], type }] : []),
     ...(exact.length > 1 ? [{ field, op: "oneOf", value: exact, type }] : []),
@@ -52,6 +88,9 @@ function mergedConditions({ field, type }, exact, contains) {
  *   actions are merged into one rule, e.g. "payee is A → Coffee" and "payee is B → Coffee" become
  *   "payee is one of A, B → Coffee", and "imported payee contains X → payee P" and "imported
  *   payee is Y → payee P" become "imported payee is Y or contains X → payee P";
+ * - rules whose conditions must all match are merged the same way when they differ only in one
+ *   "is"/"is one of" condition (payee first), e.g. "payee is A and amount < 0 → Loan" and "payee
+ *   is B and amount < 0 → Loan" become "payee is one of A, B and amount < 0 → Loan";
  * - other rules that are exact duplicates are deleted, keeping one.
  *
  * Merging changes the order Actual applies rules in, so rules that can match the same text with
@@ -64,7 +103,12 @@ export function planRuleMerges(rules) {
     .map((rule) => ({ rule, match: matcher(rule) }))
     .filter(({ match }) => match);
   const scopeKey = ({ rule, match }) =>
-    JSON.stringify([rule.stage ?? null, match.field, match.type]);
+    JSON.stringify([
+      rule.stage ?? null,
+      match.field,
+      match.type,
+      match.context.map(canonical).sort(),
+    ]);
 
   const conflicts = [];
   for (const scope of Map.groupBy(candidates, scopeKey).values()) {
@@ -105,7 +149,7 @@ export function planRuleMerges(rules) {
     const exact = unique(group.flatMap(({ match }) => match.exact));
     const contains = unique(group.flatMap(({ match }) => match.contains));
     merges.push({
-      rule: { ...target.rule, ...mergedConditions(target.match, exact, contains) },
+      rule: { ...target.rule, ...mergedConditions(target.rule, target.match, exact, contains) },
       removeIds: rest.map(({ rule }) => rule.id),
     });
   }
