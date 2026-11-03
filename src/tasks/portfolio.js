@@ -1,4 +1,4 @@
-import { formatDate, importTransactions } from "../actual.js";
+import { formatDate, importTransactions, requireOpenAccounts } from "../actual.js";
 import { requestJson } from "../http.js";
 import { log } from "../log.js";
 
@@ -20,14 +20,26 @@ export async function fetchWealthfolioBalances({ serverURL }) {
 
 /**
  * Makes each Actual account match its remote balance by adding one adjustment transaction for the
- * difference on every sync that finds one.
+ * difference on every sync that finds one. Returns a warning for each remote account not found.
  */
 export async function syncBalances(api, name, accounts, remoteBalances) {
+  await requireOpenAccounts(
+    api,
+    name,
+    accounts.map(({ remoteAccount, actualAccount }) => [
+      `for ${name} account ${remoteAccount}`,
+      actualAccount,
+    ]),
+    `Check the ${name.toUpperCase()}_ACTUAL_ACCOUNT variables`,
+  );
   const today = formatDate();
+  const warnings = [];
 
   for (const { remoteAccount, actualAccount, payeeName } of accounts) {
     if (!remoteBalances.has(remoteAccount)) {
-      log.error(`${name} account ${remoteAccount} not found`);
+      const warning = `${name} account ${remoteAccount} not found`;
+      log.warn(warning);
+      warnings.push(warning);
       continue;
     }
     const remoteBalance = Math.round(remoteBalances.get(remoteAccount) * 100);
@@ -47,4 +59,5 @@ export async function syncBalances(api, name, accounts, remoteBalances) {
       { payeeNameNormalization: "original" },
     );
   }
+  return warnings;
 }

@@ -49,18 +49,20 @@ export const tasks = {
     enabled: (config) => config.ghostfolio,
     run: async (config) => {
       const balances = await fetchGhostfolioBalances(config.ghostfolio);
-      await withBudget(config.actual, (api) =>
+      const warnings = await withBudget(config.actual, (api) =>
         syncBalances(api, "Ghostfolio", config.ghostfolio.accounts, balances),
       );
+      return summarize(warnings, "accounts");
     },
   },
   "wealthfolio-sync": {
     enabled: (config) => config.wealthfolio,
     run: async (config) => {
       const balances = await fetchWealthfolioBalances(config.wealthfolio);
-      await withBudget(config.actual, (api) =>
+      const warnings = await withBudget(config.actual, (api) =>
         syncBalances(api, "Wealthfolio", config.wealthfolio.accounts, balances),
       );
+      return summarize(warnings, "accounts");
     },
   },
   "bank-sync": {

@@ -24,9 +24,11 @@ describe("calculateMortgage", () => {
     mainAccountId: "main",
     interestRate: 5399,
   };
+  const accounts = [{ id: "loan" }, { id: "main" }];
 
   it("records the principal when this month's payment has none yet", async () => {
     const api = fakeApi({
+      accounts,
       transactions: { main: [{ payee: "bank", amount: -80_000, date: today }] },
       balances: { loan: -12_000_000 },
     });
@@ -38,13 +40,14 @@ describe("calculateMortgage", () => {
 
   it("does nothing when the principal is already recorded", async () => {
     const payment = { payee: "bank", amount: -80_000, date: today };
-    const api = fakeApi({ transactions: { main: [payment], loan: [payment] } });
+    const api = fakeApi({ accounts, transactions: { main: [payment], loan: [payment] } });
     await calculateMortgage(api, mortgage);
     assert.equal(callsTo(api, "importTransactions").length, 0);
   });
 
   it("does nothing when the principal was recorded in the month after the payment", async () => {
     const api = fakeApi({
+      accounts,
       transactions: {
         main: [{ payee: "bank", amount: -80_000, date: "2026-09-30" }],
         loan: [{ payee: "bank", amount: 26_010, date: "2026-10-01" }],
@@ -56,6 +59,7 @@ describe("calculateMortgage", () => {
 
   it("uses the newest payment and principal regardless of order", async () => {
     const api = fakeApi({
+      accounts,
       transactions: {
         main: [
           { payee: "bank", amount: -80_000, date: "2026-09-30" },
@@ -70,8 +74,21 @@ describe("calculateMortgage", () => {
   });
 
   it("does nothing without a recent payment", async () => {
-    const api = fakeApi();
+    const api = fakeApi({ accounts });
     await calculateMortgage(api, mortgage);
+    assert.equal(callsTo(api, "importTransactions").length, 0);
+  });
+
+  it("fails before reading when an account isn't open", async () => {
+    const api = fakeApi({
+      accounts: [{ id: "loan", closed: true }],
+      transactions: { main: [{ payee: "bank", amount: -80_000, date: today }] },
+    });
+    await assert.rejects(
+      calculateMortgage(api, mortgage),
+      /^Error: Mortgage: not an open account in this budget: "loan" \(MORTGAGE_ACCOUNT_ID\), "main" \(MAIN_ACCOUNT_ID\)$/,
+    );
+    assert.equal(callsTo(api, "getTransactions").length, 0);
     assert.equal(callsTo(api, "importTransactions").length, 0);
   });
 });
@@ -377,9 +394,10 @@ describe("mergeRules", () => {
 
 describe("syncBalances", () => {
   const accounts = [{ remoteAccount: "w1", actualAccount: "A", payeeName: "Broker" }];
+  const open = [{ id: "A" }, { id: "B" }];
 
   it("adds an adjustment for the difference", async () => {
-    const api = fakeApi({ balances: { A: 10_000 } });
+    const api = fakeApi({ accounts: open, balances: { A: 10_000 } });
     await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
     assert.deepEqual(callsTo(api, "importTransactions"), [
       [
@@ -393,6 +411,7 @@ describe("syncBalances", () => {
 
   it("adds another adjustment instead of changing an earlier one", async () => {
     const api = fakeApi({
+      accounts: open,
       balances: { A: 10_000 },
       transactions: { A: [{ id: "adj", amount: 500, payee: "broker", date: today }] },
     });
@@ -402,7 +421,7 @@ describe("syncBalances", () => {
   });
 
   it("fails when Actual rejects the adjustment", async () => {
-    const api = fakeApi({ balances: { A: 10_000 } });
+    const api = fakeApi({ accounts: open, balances: { A: 10_000 } });
     api.importTransactions = async () => ({
       added: [],
       updated: [],
@@ -414,14 +433,30 @@ describe("syncBalances", () => {
     );
   });
 
-  it("skips accounts already in sync and unknown remote accounts", async () => {
-    const api = fakeApi({ balances: { A: 12_345 } });
-    await syncBalances(
+  it("skips accounts already in sync and warns about unknown remote accounts", async () => {
+    const api = fakeApi({ accounts: open, balances: { A: 12_345 } });
+    const warnings = await syncBalances(
       api,
       "Test",
       [...accounts, { remoteAccount: "missing", actualAccount: "B", payeeName: "Missing" }],
       new Map([["w1", 123.45]]),
     );
+    assert.deepEqual(warnings, ["Test account missing not found"]);
+    assert.equal(callsTo(api, "importTransactions").length, 0);
+  });
+
+  it("fails before syncing when an Actual account isn't open", async () => {
+    const api = fakeApi({ accounts: [{ id: "A" }, { id: "B", closed: true }] });
+    await assert.rejects(
+      syncBalances(
+        api,
+        "Test",
+        [...accounts, { remoteAccount: "w2", actualAccount: "B", payeeName: "Other" }],
+        new Map([["w1", 123.45]]),
+      ),
+      /^Error: Test: not an open account in this budget: "B" \(for Test account w2\)\. Check the TEST_ACTUAL_ACCOUNT variables$/,
+    );
+    assert.equal(callsTo(api, "getAccountBalance").length, 0);
     assert.equal(callsTo(api, "importTransactions").length, 0);
   });
 });

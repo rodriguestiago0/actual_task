@@ -68,6 +68,24 @@ export async function withBudget(
   return result;
 }
 
+/**
+ * Throws unless every account id is an open account in the budget. Actual imports into an unknown
+ * id without an error, as transactions no account shows, again on every run. accounts is a list of
+ * [label, id], the label saying where the id is configured; hint is added to the error.
+ */
+export async function requireOpenAccounts(api, task, accounts, hint) {
+  const open = new Set(
+    (await api.getAccounts()).filter((account) => !account.closed).map((account) => account.id),
+  );
+  const unknown = accounts.filter(([, id]) => !open.has(id));
+  if (unknown.length > 0) {
+    const list = unknown.map(([label, id]) => `"${id}" (${label})`);
+    throw new Error(
+      `${task}: not an open account in this budget: ${list.join(", ")}${hint ? `. ${hint}` : ""}`,
+    );
+  }
+}
+
 /** Imports transactions, throwing when Actual reports errors (it returns them instead). */
 export async function importTransactions(api, accountId, transactions, opts) {
   log.debug("Transactions to import:", transactions);

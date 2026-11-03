@@ -39,8 +39,9 @@ previewed with Actual's own dry run.
 | `wealthfolio-sync`   | `ENABLE_WEALTHFOLIO_SYNC`     |
 | `bank-sync`          | `ENABLE_BANK_SYNC`            |
 
-Account IDs are in the app's URL when you open an account (`/accounts/<ID>`). Actual doesn't show
-payee IDs in the app; get them from the API (`getPayees()`).
+Account IDs are in the app's URL when you open an account (`/accounts/<ID>`). A task fails before
+changing anything when one of its account IDs isn't an open account in the budget. Actual doesn't
+show payee IDs in the app; get them from the API (`getPayees()`).
 
 ### Fix payees
 
@@ -160,8 +161,9 @@ zone (`TZ`).
 ## Notifications
 
 When a task run by the scheduler fails, you get a message, and another one the next time it
-succeeds. You also get merge-rules' conflicts, once until they change; when there are too many for
-one message, the rest are counted and left in the logs. Runs started from the command line don't
+succeeds. You also get merge-rules' conflicts and Ghostfolio/Wealthfolio accounts that weren't
+found, once until they change; when there are too many for one message, the rest are counted and
+left in the logs. Runs started from the command line don't
 send notifications.
 
 Set `NOTIFICATION_URL` to one or more space-separated URLs. They use the same format as
