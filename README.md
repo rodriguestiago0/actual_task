@@ -108,7 +108,7 @@ earlier transaction and the principal is recorded on every run.
 
 Keeps an Actual account's balance equal to an account's balance in
 [Ghostfolio](https://ghostfol.io) or [Wealthfolio](https://wealthfolio.app), using one adjustment
-transaction per month. The first sync in a month adds the transaction; later syncs update its
+transaction per day. The first sync of a day adds the transaction; later syncs that day update its
 amount.
 
 | Ghostfolio                     | Wealthfolio                     | Meaning                              |
@@ -123,8 +123,8 @@ To sync more accounts, add the same three account variables with a `_1`, `_2`, .
 `GHOSTFOLIO_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_PAYEE_NAME_1`). Numbering
 stops at the first set with a missing variable.
 
-The adjustment transaction is identified by its note, `actual-tasks balance sync`. If you change
-the note or reconcile the transaction, the next sync adds a new one.
+The adjustment transaction is today's unreconciled transaction with the payee above. If you
+reconcile it, the next sync adds a new one.
 
 Wealthfolio is called without authentication. Before reading balances, the task asks Wealthfolio to
 refresh valuations (`POST /api/v1/portfolio/update`).
