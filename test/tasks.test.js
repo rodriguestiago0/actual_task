@@ -353,14 +353,8 @@ describe("mergeRules", () => {
 describe("syncBalances", () => {
   const accounts = [{ remoteAccount: "w1", actualAccount: "A", payeeName: "Broker" }];
 
-  const payees = [{ id: "broker", name: "Broker" }];
-
-  it("adds an adjustment when the day has none", async () => {
-    const api = fakeApi({
-      balances: { A: 10_000 },
-      payees,
-      transactions: { A: [{ id: "other", amount: 500, payee: "shop" }] },
-    });
+  it("adds an adjustment for the difference", async () => {
+    const api = fakeApi({ balances: { A: 10_000 } });
     await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
     assert.deepEqual(callsTo(api, "importTransactions"), [
       [
@@ -372,36 +366,18 @@ describe("syncBalances", () => {
     ]);
   });
 
-  it("finds today's adjustment whatever the payee name's case", async () => {
+  it("adds another adjustment instead of changing an earlier one", async () => {
     const api = fakeApi({
       balances: { A: 10_000 },
-      payees: [{ id: "ibkr", name: "Ibkr" }],
-      transactions: { A: [{ id: "adj", amount: 500, payee: "ibkr" }] },
-    });
-    await syncBalances(
-      api,
-      "Test",
-      [{ remoteAccount: "w1", actualAccount: "A", payeeName: "IBKR" }],
-      new Map([["w1", 123.45]]),
-    );
-    assert.equal(callsTo(api, "importTransactions").length, 0);
-    assert.equal(callsTo(api, "updateTransaction").length, 1);
-  });
-
-  it("ignores a transfer payee named like the adjustment payee", async () => {
-    const api = fakeApi({
-      balances: { A: 10_000 },
-      payees: [...payees, { id: "transfer", name: "Broker", transfer_acct: "B" }],
-      transactions: { A: [{ id: "adj", amount: 500, payee: "broker" }] },
+      transactions: { A: [{ id: "adj", amount: 500, payee: "broker", date: today }] },
     });
     await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
-    assert.deepEqual(callsTo(api, "updateTransaction"), [
-      ["updateTransaction", "adj", { amount: 2_845 }],
-    ]);
+    assert.equal(callsTo(api, "importTransactions").length, 1);
+    assert.equal(callsTo(api, "updateTransaction").length, 0);
   });
 
   it("fails when Actual rejects the adjustment", async () => {
-    const api = fakeApi({ balances: { A: 10_000 }, payees });
+    const api = fakeApi({ balances: { A: 10_000 } });
     api.importTransactions = async () => ({
       added: [],
       updated: [],
@@ -413,30 +389,6 @@ describe("syncBalances", () => {
     );
   });
 
-  it("adds an adjustment when the reconciled one can't change", async () => {
-    const api = fakeApi({
-      balances: { A: 10_000 },
-      payees,
-      transactions: { A: [{ id: "adj", amount: 500, payee: "broker", reconciled: true }] },
-    });
-    await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
-    assert.equal(callsTo(api, "importTransactions").length, 1);
-    assert.equal(callsTo(api, "updateTransaction").length, 0);
-  });
-
-  it("updates today's adjustment instead of adding another", async () => {
-    const api = fakeApi({
-      balances: { A: 10_000 },
-      payees,
-      transactions: { A: [{ id: "adj", amount: 500, payee: "broker" }] },
-    });
-    await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
-    assert.equal(callsTo(api, "importTransactions").length, 0);
-    assert.deepEqual(callsTo(api, "updateTransaction"), [
-      ["updateTransaction", "adj", { amount: 2_845 }],
-    ]);
-  });
-
   it("skips accounts already in sync and unknown remote accounts", async () => {
     const api = fakeApi({ balances: { A: 12_345 } });
     await syncBalances(
@@ -446,6 +398,5 @@ describe("syncBalances", () => {
       new Map([["w1", 123.45]]),
     );
     assert.equal(callsTo(api, "importTransactions").length, 0);
-    assert.equal(callsTo(api, "updateTransaction").length, 0);
   });
 });
