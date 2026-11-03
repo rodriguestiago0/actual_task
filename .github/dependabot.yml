@@ -1,13 +1,14 @@
 version: 2
 updates:
-  # No cooldown: take new releases on the next run instead of waiting Dependabot's default 3 days.
+  # Updates wait 3 days after release, except @actual-app/api, which is taken on the next run.
   # @actual-app/api gets its own PR (it triggers a release); everything else is grouped.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "daily"
     cooldown:
-      default-days: 0
+      default-days: 3
+      exclude: ["@actual-app/api"]
     groups:
       npm-dependencies:
         patterns: ["*"]
@@ -18,7 +19,7 @@ updates:
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 0
+      default-days: 3
     # Node majors are bumped by hand: arm/v7 has to stay on the newest major with 32-bit ARM images.
     ignore:
       - dependency-name: "node"
@@ -29,7 +30,7 @@ updates:
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 0
+      default-days: 3
     groups:
       github-actions:
         patterns: ["*"]
