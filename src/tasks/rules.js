@@ -189,16 +189,17 @@ async function describer(api) {
     `if ${describe(rule.conditions, rule.conditionsOp)} then ${describe(rule.actions, "and")}`;
 }
 
+/** Merges rules, returning a description of each conflict left alone. */
 export async function mergeRules(api) {
   const { merges, conflicts } = planRuleMerges(await api.getRules());
   const describe = await describer(api);
 
-  for (const { value, rules } of conflicts) {
-    log.warn(
+  const warnings = conflicts.map(
+    ({ value, rules }) =>
       `Not merging ${rules.length} rules that can match ${JSON.stringify(value)} with different actions:\n` +
-        rules.map((rule) => `  ${describe(rule)}`).join("\n"),
-    );
-  }
+      rules.map((rule) => `  ${describe(rule)}`).join("\n"),
+  );
+  for (const warning of warnings) log.warn(warning);
 
   for (const { rule, removeIds } of merges) {
     log.info(`Merge ${removeIds.length + 1} rules into: ${describe(rule)}`);
@@ -208,4 +209,5 @@ export async function mergeRules(api) {
 
   const removed = merges.reduce((count, { removeIds }) => count + removeIds.length, 0);
   log.info(`Removed ${removed} rules`);
+  return warnings;
 }

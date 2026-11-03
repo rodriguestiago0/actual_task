@@ -331,9 +331,22 @@ describe("mergeRules", () => {
         categoryRule("2", "is", "mango", "clothes"),
       ],
     });
-    await mergeRules(api);
+    assert.deepEqual(await mergeRules(api), []);
     assert.equal(callsTo(api, "updateRule").length, 1);
     assert.deepEqual(callsTo(api, "deleteRule"), [["deleteRule", "2"]]);
+  });
+
+  it("returns the conflicts it left alone", async () => {
+    const api = fakeApi({
+      rules: [
+        categoryRule("1", "is", "doce alto", "coffee"),
+        categoryRule("2", "is", "doce alto", "restaurant"),
+      ],
+    });
+    const [conflict, ...rest] = await mergeRules(api);
+    assert.equal(rest.length, 0);
+    assert.match(conflict, /Not merging 2 rules that can match "doce alto"/);
+    assert.equal(callsTo(api, "updateRule").length, 0);
   });
 });
 

@@ -11,7 +11,27 @@ import {
 } from "./tasks/portfolio.js";
 import { mergeRules } from "./tasks/rules.js";
 
-/** Tasks in the order they run when scheduled together. Each is enabled when its config is set. */
+// Warnings are notified in one message, which Discord limits to 2000 characters.
+const WARNING_LIMIT = 1800;
+
+/** Joins as many items as fit in WARNING_LIMIT, counting the rest, or undefined without items. */
+export function summarize(items, noun) {
+  let text = "";
+  let shown = 0;
+  for (const item of items) {
+    const next = text ? `${text}\n\n${item}` : item;
+    if (shown > 0 && next.length > WARNING_LIMIT) break;
+    text = next;
+    shown++;
+  }
+  const more = items.length - shown;
+  return more > 0 ? `${text}\n\n…and ${more} more ${noun}, see the logs` : text || undefined;
+}
+
+/**
+ * Tasks in the order they run when scheduled together. Each is enabled when its config is set, and
+ * run may resolve to a warning for the scheduler to notify about.
+ */
 export const tasks = {
   "calculate-mortgage": {
     enabled: (config) => config.mortgage,
@@ -23,7 +43,7 @@ export const tasks = {
   },
   "merge-rules": {
     enabled: (config) => config.ruleMerge,
-    run: (config) => withBudget(config.actual, mergeRules),
+    run: async (config) => summarize(await withBudget(config.actual, mergeRules), "conflicts"),
   },
   "ghostfolio-sync": {
     enabled: (config) => config.ghostfolio,
@@ -86,18 +106,28 @@ export const idle = () => queue;
 
 // Tasks whose last run failed, so the next successful run can be reported as a recovery.
 const failing = new Set();
+// Each task's last warning, so the same warning is only notified once.
+const warned = new Map();
 
-/** Runs the given tasks one after another; failures and recoveries are logged and notified. */
+/**
+ * Runs the given tasks one after another; failures, recoveries and new warnings are logged and
+ * notified.
+ */
 export function runTasks(config, names, registry = tasks) {
   return runExclusive(async () => {
     let ok = true;
     for (const name of names) {
       log.info(`Running ${name}`);
       try {
-        await registry[name].run(config);
+        const warning = await registry[name].run(config);
         log.info(`Finished ${name}`);
         if (failing.delete(name)) {
           await notify(config.notifications, `✅ actual-tasks: ${name} recovered`);
+        }
+        if (typeof warning !== "string") warned.delete(name);
+        else if (warned.get(name) !== warning) {
+          warned.set(name, warning);
+          await notify(config.notifications, `⚠️ actual-tasks: ${name}\n${warning}`);
         }
       } catch (err) {
         ok = false;

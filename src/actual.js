@@ -29,8 +29,8 @@ export function dryRunApi(api, skipped) {
 }
 
 /**
- * Downloads a fresh copy of the budget, runs fn(api), then syncs and always shuts down. In a dry
- * run, fn gets an API that can't change the budget, and nothing is synced.
+ * Downloads a fresh copy of the budget, runs fn(api), then syncs and always shuts down, returning
+ * fn's result. In a dry run, fn gets an API that can't change the budget, and nothing is synced.
  */
 export async function withBudget(
   { serverURL, password, filePassword, syncId, dataDir, dryRun = false },
@@ -50,13 +50,14 @@ export async function withBudget(
   }
 
   const skipped = new Map();
+  let result;
   try {
     if (dryRun) {
-      await fn(dryRunApi(api, skipped));
+      result = await fn(dryRunApi(api, skipped));
       const calls = [...skipped].map(([name, count]) => `${name} ×${count}`).join(", ");
       log.info(`Dry run: nothing was saved${calls ? ` (skipped ${calls})` : ""}`);
     } else {
-      await fn(api);
+      result = await fn(api);
       await api.sync();
     }
   } catch (err) {
@@ -64,6 +65,7 @@ export async function withBudget(
     throw err;
   }
   await api.shutdown();
+  return result;
 }
 
 export async function importTransactions(api, accountId, transactions) {
