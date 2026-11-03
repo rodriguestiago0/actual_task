@@ -79,6 +79,8 @@ different actions are left alone and logged as a warning, for you to fix in Actu
 - a "contains" value found in another rule's value, e.g. `imported payee contains Continente →
 Continente` and `imported payee is Continente Bom Dia → Bom Dia`.
 
+When run by the scheduler, these conflicts are also sent as a notification, once until they change.
+
 ### Calculate mortgage
 
 Records the principal part of your last mortgage payment in the mortgage account, which brings the
@@ -161,7 +163,8 @@ zone (`TZ`).
 ## Notifications
 
 When a task run by the scheduler fails, you get a message, and another one the next time it
-succeeds. Runs started from the command line don't
+succeeds. You also get merge-rules' conflicts, once until they change; when there are too many for
+one message, the rest are counted and left in the logs. Runs started from the command line don't
 send notifications.
 
 Set `NOTIFICATION_URL` to one or more space-separated URLs. They use the same format as
