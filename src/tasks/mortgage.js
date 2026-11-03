@@ -1,4 +1,9 @@
-import { formatDate, getLastTransaction, importTransactions } from "../actual.js";
+import {
+  formatDate,
+  getLastTransaction,
+  importTransactions,
+  requireOpenAccounts,
+} from "../actual.js";
 import { log } from "../log.js";
 
 /**
@@ -14,6 +19,10 @@ export async function calculateMortgage(
   api,
   { payeeId, payeeName, mortgageAccountId, mainAccountId, interestRate },
 ) {
+  await requireOpenAccounts(api, "Mortgage", [
+    ["MORTGAGE_ACCOUNT_ID", mortgageAccountId],
+    ["MAIN_ACCOUNT_ID", mainAccountId],
+  ]);
   const lastPayment = await getLastTransaction(api, mainAccountId, payeeId);
   if (!lastPayment) {
     log.info("No mortgage payment in the last month, skipping");
