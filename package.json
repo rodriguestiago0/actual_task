@@ -18,7 +18,7 @@
   "author": "Tiago Rodrigues",
   "license": "MIT",
   "dependencies": {
-    "@actual-app/api": "^26.10.0",
+    "@actual-app/api": "^26.11.0",
     "node-cron": "^4.6.0",
     "nodemailer": "^10.3.1"
   },
