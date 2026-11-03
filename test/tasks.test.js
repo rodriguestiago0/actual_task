@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { formatDate } from "../src/actual.js";
 import { calculateMortgage, principalAmount } from "../src/tasks/mortgage.js";
 import { cleanPayeeName, findDuplicatePayees, fixPayees } from "../src/tasks/payees.js";
-import { ADJUSTMENT_NOTE, syncBalances } from "../src/tasks/portfolio.js";
+import { syncBalances } from "../src/tasks/portfolio.js";
 import { mergeRules, planRuleMerges } from "../src/tasks/rules.js";
 import { callsTo, fakeApi } from "./fake-api.js";
 
@@ -340,23 +340,40 @@ describe("mergeRules", () => {
 describe("syncBalances", () => {
   const accounts = [{ remoteAccount: "w1", actualAccount: "A", payeeName: "Broker" }];
 
-  it("adds a marked adjustment when the month has none", async () => {
-    const api = fakeApi({ balances: { A: 10_000 } });
-    await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
-    const [[, , [transaction]]] = callsTo(api, "importTransactions");
-    assert.equal(transaction.amount, 2_345);
-    assert.equal(transaction.notes, ADJUSTMENT_NOTE);
-  });
+  const payees = [{ id: "broker", name: "Broker" }];
 
-  it("updates this month's adjustment instead of adding another", async () => {
+  it("adds an adjustment when the day has none", async () => {
     const api = fakeApi({
       balances: { A: 10_000 },
-      transactions: { A: [{ id: "adj", amount: 500, notes: ADJUSTMENT_NOTE }] },
+      payees,
+      transactions: { A: [{ id: "other", amount: 500, payee: "shop" }] },
+    });
+    await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
+    const [[, , [transaction]]] = callsTo(api, "importTransactions");
+    assert.deepEqual(transaction, { date: today, amount: 2_345, payee_name: "Broker" });
+  });
+
+  it("adds an adjustment when the reconciled one can't change", async () => {
+    const api = fakeApi({
+      balances: { A: 10_000 },
+      payees,
+      transactions: { A: [{ id: "adj", amount: 500, payee: "broker", reconciled: true }] },
+    });
+    await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
+    assert.equal(callsTo(api, "importTransactions").length, 1);
+    assert.equal(callsTo(api, "updateTransaction").length, 0);
+  });
+
+  it("updates today's adjustment instead of adding another", async () => {
+    const api = fakeApi({
+      balances: { A: 10_000 },
+      payees,
+      transactions: { A: [{ id: "adj", amount: 500, payee: "broker" }] },
     });
     await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
     assert.equal(callsTo(api, "importTransactions").length, 0);
     assert.deepEqual(callsTo(api, "updateTransaction"), [
-      ["updateTransaction", "adj", { amount: 2_845, date: today }],
+      ["updateTransaction", "adj", { amount: 2_845 }],
     ]);
   });
 
