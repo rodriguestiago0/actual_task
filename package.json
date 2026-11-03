@@ -34,5 +34,8 @@
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.13.0",
     "prettier": "^3.9.10"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }
