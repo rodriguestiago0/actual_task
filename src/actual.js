@@ -68,13 +68,18 @@ export async function withBudget(
   return result;
 }
 
-export async function importTransactions(api, accountId, transactions) {
+/** Imports transactions, throwing when Actual reports errors (it returns them instead). */
+export async function importTransactions(api, accountId, transactions, opts) {
   log.debug("Transactions to import:", transactions);
-  const result = await api.importTransactions(accountId, transactions);
+  const result = await api.importTransactions(accountId, transactions, opts);
   log.info(
     `Imported into ${accountId}: ${result.added.length} added, ${result.updated.length} updated`,
   );
-  if (result.errors?.length) log.error("Actual import errors:", result.errors);
+  if (result.errors?.length) {
+    throw new Error(
+      `Import into ${accountId} failed: ${result.errors.map((e) => e.message).join("; ")}`,
+    );
+  }
 }
 
 /** Most recent transaction in the last month, optionally filtered by payee. */
