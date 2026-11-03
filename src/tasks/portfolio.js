@@ -21,11 +21,16 @@ export async function fetchWealthfolioBalances({ serverURL }) {
 /**
  * Makes each Actual account match its remote balance using one adjustment transaction per day:
  * the first sync of a day adds it, later syncs that day update its amount. The adjustment is
- * today's unreconciled transaction with the account's payee.
+ * today's unreconciled transaction with the account's payee, matched ignoring case.
  */
 export async function syncBalances(api, name, accounts, remoteBalances) {
   const today = formatDate();
-  const payeeIds = new Map((await api.getPayees()).map((payee) => [payee.name, payee.id]));
+  // Transfer payees are named after accounts, so they're left out in case one shares the name.
+  const payeeIds = new Map(
+    (await api.getPayees())
+      .filter((payee) => !payee.transfer_acct)
+      .map((payee) => [payee.name.toLowerCase(), payee.id]),
+  );
 
   for (const { remoteAccount, actualAccount, payeeName } of accounts) {
     if (!remoteBalances.has(remoteAccount)) {
@@ -41,15 +46,20 @@ export async function syncBalances(api, name, accounts, remoteBalances) {
     }
 
     const transactions = await api.getTransactions(actualAccount, today, today);
-    const payeeId = payeeIds.get(payeeName);
+    const payeeId = payeeIds.get(payeeName.toLowerCase());
     const adjustment = transactions.find((t) => payeeId && t.payee === payeeId && !t.reconciled);
     if (adjustment) {
       log.info(`Updating ${payeeName} adjustment by ${difference / 100}`);
       await api.updateTransaction(adjustment.id, { amount: adjustment.amount + difference });
     } else {
-      await importTransactions(api, actualAccount, [
-        { date: today, amount: difference, payee_name: payeeName },
-      ]);
+      // Forced, so Actual doesn't merge it into another transaction with the same amount, and
+      // with the payee name kept as written instead of title-cased.
+      await importTransactions(
+        api,
+        actualAccount,
+        [{ date: today, amount: difference, payee_name: payeeName, forceAddTransaction: true }],
+        { payeeNameNormalization: "original" },
+      );
     }
   }
 }

@@ -362,8 +362,55 @@ describe("syncBalances", () => {
       transactions: { A: [{ id: "other", amount: 500, payee: "shop" }] },
     });
     await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
-    const [[, , [transaction]]] = callsTo(api, "importTransactions");
-    assert.deepEqual(transaction, { date: today, amount: 2_345, payee_name: "Broker" });
+    assert.deepEqual(callsTo(api, "importTransactions"), [
+      [
+        "importTransactions",
+        "A",
+        [{ date: today, amount: 2_345, payee_name: "Broker", forceAddTransaction: true }],
+        { payeeNameNormalization: "original" },
+      ],
+    ]);
+  });
+
+  it("finds today's adjustment whatever the payee name's case", async () => {
+    const api = fakeApi({
+      balances: { A: 10_000 },
+      payees: [{ id: "ibkr", name: "Ibkr" }],
+      transactions: { A: [{ id: "adj", amount: 500, payee: "ibkr" }] },
+    });
+    await syncBalances(
+      api,
+      "Test",
+      [{ remoteAccount: "w1", actualAccount: "A", payeeName: "IBKR" }],
+      new Map([["w1", 123.45]]),
+    );
+    assert.equal(callsTo(api, "importTransactions").length, 0);
+    assert.equal(callsTo(api, "updateTransaction").length, 1);
+  });
+
+  it("ignores a transfer payee named like the adjustment payee", async () => {
+    const api = fakeApi({
+      balances: { A: 10_000 },
+      payees: [...payees, { id: "transfer", name: "Broker", transfer_acct: "B" }],
+      transactions: { A: [{ id: "adj", amount: 500, payee: "broker" }] },
+    });
+    await syncBalances(api, "Test", accounts, new Map([["w1", 123.45]]));
+    assert.deepEqual(callsTo(api, "updateTransaction"), [
+      ["updateTransaction", "adj", { amount: 2_845 }],
+    ]);
+  });
+
+  it("fails when Actual rejects the adjustment", async () => {
+    const api = fakeApi({ balances: { A: 10_000 }, payees });
+    api.importTransactions = async () => ({
+      added: [],
+      updated: [],
+      errors: [{ message: "Amount is invalid" }],
+    });
+    await assert.rejects(
+      syncBalances(api, "Test", accounts, new Map([["w1", 123.45]])),
+      /Import into A failed: Amount is invalid/,
+    );
   });
 
   it("adds an adjustment when the reconciled one can't change", async () => {

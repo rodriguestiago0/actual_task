@@ -125,8 +125,8 @@ To sync more accounts, add the same three account variables with a `_1`, `_2`, .
 `GHOSTFOLIO_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_PAYEE_NAME_1`). Numbering
 stops at the first set with a missing variable.
 
-The adjustment transaction is today's unreconciled transaction with the payee above. If you
-reconcile it, the next sync adds a new one.
+The adjustment transaction is today's unreconciled transaction with the payee above (ignoring
+case), so use a payee only for adjustments. If you reconcile it, the next sync adds a new one.
 
 Wealthfolio is called without authentication. Before reading balances, the task asks Wealthfolio to
 refresh valuations (`POST /api/v1/portfolio/update`).
