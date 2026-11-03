@@ -14,6 +14,20 @@ const actionsKey = (rule) => rule.actions.map(canonical).sort().join("\n");
 
 const lower = (value) => (typeof value === "string" ? value.toLowerCase() : value);
 
+// Fields Actual accepts "is one of" on: its id fields, and its string fields except notes, with
+// payee fields under both their API and stored names. Rules on other fields (amount, date, notes,
+// booleans) are only merged when they are exact duplicates.
+const ONE_OF_FIELDS = new Set([
+  "payee",
+  "description",
+  "imported_payee",
+  "imported_description",
+  "payee_name",
+  "account",
+  "category",
+  "category_group",
+]);
+
 // The condition that varies between rules merged on several conditions, by preference.
 const VARYING_FIELDS = ["payee", "description", "imported_payee", "account", "category"];
 
@@ -48,6 +62,7 @@ function matcher(rule) {
   if (conditions.length === 0) return null;
   if (conditions.length > 1 && conditionsOp !== "or") return contextMatcher(rule);
   const [{ field, type }] = conditions;
+  if (!ONE_OF_FIELDS.has(field)) return null;
   const exact = [];
   const contains = [];
   for (const { field: f, type: t, op, value, options } of conditions) {

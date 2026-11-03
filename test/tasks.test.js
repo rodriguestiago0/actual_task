@@ -200,6 +200,31 @@ describe("planRuleMerges", () => {
     ]);
   });
 
+  it("doesn't fold values on fields Actual has no is-one-of for", () => {
+    const rule = (id, field, type, value) => ({
+      ...categoryRule(id, "is", value, "gym"),
+      conditions: [{ field, op: "is", value, type }],
+    });
+    const { merges } = planRuleMerges([
+      rule("1", "amount", "number", -999),
+      rule("2", "amount", "number", -1299),
+      rule("3", "notes", "string", "gym"),
+      rule("4", "notes", "string", "pool"),
+      rule("5", "date", "date", "2026-01-01"),
+      rule("6", "date", "date", "2026-02-01"),
+    ]);
+    assert.deepEqual(merges, []);
+  });
+
+  it("still deletes exact duplicates on those fields", () => {
+    const rule = (id) => ({
+      ...categoryRule(id, "is", -999, "gym"),
+      conditions: [{ field: "amount", op: "is", value: -999, type: "number" }],
+    });
+    const { merges } = planRuleMerges([rule("1"), rule("2")]);
+    assert.deepEqual(merges, [{ rule: rule("1"), removeIds: ["2"] }]);
+  });
+
   it("treats empty action options as none", () => {
     const rule = categoryRule("1", "is", "zara", "clothes");
     const { merges } = planRuleMerges([
