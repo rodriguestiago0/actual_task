@@ -26,7 +26,8 @@ describe("withBudget", () => {
     assert.equal(await withBudget(actualConfig, async () => "done", fakeApi()), "done");
   });
 
-  it("still shuts down when the callback throws", async () => {
+  // the real shutdown() pushes pending changes too, swallowing errors; only api.sync() reports them
+  it("still shuts down when the callback throws, without reporting a sync", async () => {
     const api = fakeApi();
     await assert.rejects(
       withBudget(actualConfig, async () => Promise.reject(new Error("boom")), api),
@@ -72,10 +73,15 @@ describe("dryRunApi", () => {
     const budget = dryRunApi(api, skipped);
     await budget.updateRule({ id: "1" });
     await budget.updateRule({ id: "2" });
-    await budget.importTransactions("acc", [{ amount: 1 }]);
+    await budget.importTransactions("acc", [{ date: "2026-11-01", amount: 1 }]);
     assert.deepEqual([...skipped], [["updateRule", 2]]);
     assert.deepEqual(callsTo(api, "importTransactions"), [
-      ["importTransactions", "acc", [{ amount: 1 }], { defaultCleared: true, dryRun: true }],
+      [
+        "importTransactions",
+        "acc",
+        [{ date: "2026-11-01", amount: 1 }],
+        { defaultCleared: true, dryRun: true },
+      ],
     ]);
   });
 });

@@ -29,7 +29,7 @@ const ONE_OF_FIELDS = new Set([
 ]);
 
 // The condition that varies between rules merged on several conditions, by preference.
-const VARYING_FIELDS = ["payee", "description", "imported_payee", "account", "category"];
+const VARYING_FIELDS = ["payee", "imported_payee", "account", "category"];
 
 /**
  * For a rule whose conditions must all match: one "is"/"is one of" condition that can vary between

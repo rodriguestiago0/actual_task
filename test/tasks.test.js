@@ -152,7 +152,7 @@ const categoryRule = (id, op, value, category, stage = null) => ({
   id,
   stage,
   conditionsOp: "and",
-  conditions: [{ field: "description", op, value, type: "id" }],
+  conditions: [{ field: "payee", op, value, type: "id" }],
   actions: [{ field: "category", op: "set", value: category, type: "id" }],
 });
 
@@ -161,17 +161,17 @@ const payeeRule = (id, conditions, payee, conditionsOp = "and") => ({
   stage: "pre",
   conditionsOp,
   conditions: conditions.map(([op, value]) => ({
-    field: "imported_description",
+    field: "imported_payee",
     op,
     value,
     type: "string",
   })),
-  actions: [{ field: "description", op: "set", value: payee, type: "id" }],
+  actions: [{ field: "payee", op: "set", value: payee, type: "id" }],
 });
 
 const importedRule = (id, value, category) => ({
   ...categoryRule(id, "is", value, category),
-  conditions: [{ field: "imported_description", op: "is", value, type: "string" }],
+  conditions: [{ field: "imported_payee", op: "is", value, type: "string" }],
 });
 
 describe("planRuleMerges", () => {
@@ -445,7 +445,7 @@ describe("mergeRules", () => {
     const [conflict, ...rest] = await mergeRules(api);
     assert.equal(rest.length, 0);
     assert.match(conflict, /Not merging 2 rules, as it would change their order/);
-    assert.match(conflict, /with: if imported_description is "zara lisboa"/);
+    assert.match(conflict, /with: if imported_payee is "zara lisboa"/);
     assert.equal(callsTo(api, "updateRule").length, 0);
   });
 });
