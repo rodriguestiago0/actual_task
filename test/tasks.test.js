@@ -33,9 +33,11 @@ describe("calculateMortgage", () => {
       balances: { loan: -12_000_000 },
     });
     await calculateMortgage(api, mortgage);
-    const [[, account, [transaction]]] = callsTo(api, "importTransactions");
+    const [[, account, [transaction], opts]] = callsTo(api, "importTransactions");
     assert.equal(account, "loan");
     assert.equal(transaction.amount, 26_010);
+    assert.equal(transaction.forceAddTransaction, true);
+    assert.equal(opts.payeeNameNormalization, "original");
   });
 
   it("does nothing when the principal is already recorded", async () => {
