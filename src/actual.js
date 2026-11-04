@@ -8,7 +8,8 @@ const READS = /^(get|aqlQuery$|runQuery$|q$)/;
 
 /**
  * The API with every call that would change the budget skipped and counted in `skipped`, except
- * importTransactions, which runs as Actual's preview so its result can still be logged.
+ * importTransactions, which runs as Actual's preview so its result can still be logged. Its
+ * `dryRun` is true, so helpers can say what would happen instead of what did.
  */
 export function dryRunApi(api, skipped) {
   const wrap = (name, value) => {
@@ -25,12 +26,17 @@ export function dryRunApi(api, skipped) {
       skipped.set(name, (skipped.get(name) ?? 0) + 1);
     };
   };
-  return Object.fromEntries(Object.entries(api).map(([name, value]) => [name, wrap(name, value)]));
+  return {
+    ...Object.fromEntries(Object.entries(api).map(([name, value]) => [name, wrap(name, value)])),
+    dryRun: true,
+  };
 }
 
 /**
  * Downloads a fresh copy of the budget, runs fn(api), then syncs and always shuts down, returning
- * fn's result. In a dry run, fn gets an API that can't change the budget, and nothing is synced.
+ * fn's result. In a dry run, fn gets an API that can't change the budget, and the task's changes
+ * aren't synced. Actual's own schedule service still runs while the budget downloads, though: it
+ * posts due "automatically add" schedules and syncs them, as opening the app would.
  */
 export async function withBudget(
   { serverURL, password, filePassword, syncId, dataDir, dryRun = false },
@@ -55,7 +61,7 @@ export async function withBudget(
     if (dryRun) {
       result = await fn(dryRunApi(api, skipped));
       const calls = [...skipped].map(([name, count]) => `${name} ×${count}`).join(", ");
-      log.info(`Dry run: nothing was saved${calls ? ` (skipped ${calls})` : ""}`);
+      log.info(`Dry run: the task saved nothing${calls ? ` (skipped ${calls})` : ""}`);
     } else {
       result = await fn(api);
       await api.sync();
@@ -91,7 +97,8 @@ export async function importTransactions(api, accountId, transactions, opts) {
   log.debug("Transactions to import:", transactions);
   const result = await api.importTransactions(accountId, transactions, opts);
   log.info(
-    `Imported into ${accountId}: ${result.added.length} added, ${result.updated.length} updated`,
+    `${api.dryRun ? "Would import" : "Imported"} into ${accountId}: ` +
+      `${result.added.length} added, ${result.updated.length} updated`,
   );
   if (result.errors?.length) {
     throw new Error(

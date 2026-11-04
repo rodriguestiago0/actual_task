@@ -23,8 +23,12 @@ Each run downloads a fresh copy of the budget into `ACTUAL_DATA_DIR` (default
 
 Add `--dry-run` (`-n`) to run a task without saving anything, e.g.
 `node index.js merge-rules --dry-run`. The task reads the budget and logs what it would do as usual;
-calls that would change the budget are skipped and counted, and nothing is synced. Imports are
-previewed with Actual's own dry run.
+calls that would change the budget are skipped and counted, and the task's changes aren't synced.
+Imports are previewed with Actual's own dry run.
+
+A dry run still opens the budget the way the app does, so Actual's schedule service runs: due
+schedules set to "automatically add" are posted and synced, and finished one-off schedules are
+marked completed, as opening the app would. The API offers no way to stop this.
 
 > **Back up your budget first.** Renaming and merging payees, and merging rules, can't be undone.
 
