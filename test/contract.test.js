@@ -1,7 +1,8 @@
 // The same scenarios against the fake API and against the real @actual-app/api on a local budget
 // (no server), so the fake can't drift from what the tasks get from Actual.
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { rmSync } from "node:fs";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it, mock } from "node:test";
@@ -48,11 +49,14 @@ const real = {
     // the API logs every step through console
     for (const method of ["log", "info", "debug", "warn"]) mock.method(console, method, () => {});
     this.dir = await mkdtemp(join(tmpdir(), "actual-contract-"));
+    // The API writes metadata.json without awaiting it (savePrefs from the sync listener), so it
+    // can still be writing after shutdown(). Remove the budgets only once the process is done.
+    const dir = this.dir;
+    process.on("exit", () => rmSync(dir, { recursive: true, force: true }));
     await actualApi.init({ dataDir: this.dir });
   },
   async stop() {
     await actualApi.shutdown();
-    await rm(this.dir, { recursive: true, force: true });
     mock.restoreAll();
   },
   async budget({ accounts = [], payees = [], categories = [], transactions, rules }) {
