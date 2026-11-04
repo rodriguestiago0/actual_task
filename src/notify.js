@@ -4,6 +4,8 @@ import { log } from "./log.js";
 // Notification URLs use the Shoutrrr format, so URLs written for Watchtower work here too.
 
 const TIMEOUT_MS = 10_000;
+// Shoutrrr's smtp encryption values, lowercased.
+const ENCRYPTIONS = ["auto", "explicittls", "implicittls", "none"];
 
 const decode = decodeURIComponent;
 const list = (value) =>
@@ -82,11 +84,22 @@ const services = {
     }
     const port = Number(url.port || 25);
     const encryption = url.searchParams.get("encryption")?.toLowerCase() ?? "auto";
+    if (!ENCRYPTIONS.includes(encryption)) {
+      throw new Error("expected encryption=Auto, ExplicitTLS, ImplicitTLS or None");
+    }
+    const implicit = encryption === "implicittls" || (encryption === "auto" && port === 465);
+    // Shoutrrr's usestarttls=No turns STARTTLS off, like encryption=None.
+    const startTls = !["no", "false", "0"].includes(
+      url.searchParams.get("usestarttls")?.toLowerCase(),
+    );
+    const plain = encryption === "none" || (!implicit && !startTls);
     const transport = nodemailer.createTransport({
       host: url.hostname,
       port,
-      secure: encryption === "implicittls" || (encryption === "auto" && port === 465),
-      ignoreTLS: encryption === "none",
+      secure: implicit,
+      // STARTTLS is required, not opportunistic, so credentials never go out in clear text.
+      requireTLS: !implicit && !plain,
+      ignoreTLS: plain,
       auth: url.username ? { user: decode(url.username), pass: decode(url.password) } : undefined,
       connectionTimeout: TIMEOUT_MS,
     });

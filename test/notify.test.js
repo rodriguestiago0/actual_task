@@ -125,6 +125,37 @@ describe("notify", () => {
     ]);
   });
 
+  it("requires TLS on SMTP unless encryption=None", (t) => {
+    const createTransport = mock.method(nodemailer, "createTransport", (options) => options);
+    t.after(() => createTransport.mock.restore());
+    const tls = (query, port = 587) => {
+      const [{ send }] = parseNotificationUrls(
+        `smtp://u:p@mail.x.com:${port}/?from=me@x.com&to=a@x.com${query}`,
+      );
+      assert.ok(send);
+      const { secure, requireTLS, ignoreTLS } = createTransport.mock.calls.at(-1).arguments[0];
+      return { secure, requireTLS, ignoreTLS };
+    };
+    const implicit = { secure: true, requireTLS: false, ignoreTLS: false };
+    const startTls = { secure: false, requireTLS: true, ignoreTLS: false };
+    const plain = { secure: false, requireTLS: false, ignoreTLS: true };
+
+    assert.deepEqual(tls("", 465), implicit);
+    assert.deepEqual(tls(""), startTls);
+    assert.deepEqual(tls("", 25), startTls);
+    assert.deepEqual(tls("&encryption=ExplicitTLS"), startTls);
+    assert.deepEqual(tls("&encryption=explicittls", 465), startTls);
+    assert.deepEqual(tls("&encryption=ImplicitTLS"), implicit);
+    assert.deepEqual(tls("&encryption=None"), plain);
+    assert.deepEqual(tls("&encryption=None", 465), plain);
+    assert.deepEqual(tls("&usestarttls=No"), plain);
+    assert.deepEqual(tls("&usestarttls=No", 465), implicit);
+    assert.throws(
+      () => parseNotificationUrls("smtp://mail.x.com/?from=me@x.com&to=a@x.com&encryption=TLS"),
+      /encryption=Auto, ExplicitTLS, ImplicitTLS or None/,
+    );
+  });
+
   it("keeps sending to other channels when one fails", async (t) => {
     const fetch = mockFetch(t, () => new Response("nope", { status: 500 }));
     await notify(parseNotificationUrls("discord://a@1 discord://b@2"), "hi");

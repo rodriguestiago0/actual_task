@@ -197,9 +197,12 @@ Watchtower URLs:
 
 Telegram also accepts `channels=` instead of `chats=`, as older Watchtower URLs use it.
 
-URL-encode special characters in credentials (e.g. `@` → `%40`). Email uses implicit TLS on port
-465 and STARTTLS on other ports; set `encryption=None` to disable it. For plain-HTTP servers, add
-`?scheme=http` (ntfy) or `?disabletls=yes` (Gotify).
+URL-encode special characters in credentials (e.g. `@` → `%40`). Email follows Shoutrrr's
+`encryption=` values: `Auto` (default) uses implicit TLS on port 465 and STARTTLS on other ports,
+`ImplicitTLS` and `ExplicitTLS` (STARTTLS) force one or the other, and `None` sends in clear text.
+STARTTLS is required: if the server doesn't offer it, the email fails instead of being sent
+unencrypted. For a relay without TLS, set `encryption=None` (or Shoutrrr's `usestarttls=No`). For
+plain-HTTP servers, add `?scheme=http` (ntfy) or `?disabletls=yes` (Gotify).
 
 ## Logs
 
