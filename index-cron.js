@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { loadConfig, loadEnvFile } from "./src/config.js";
+import { clearConfigError, loadConfig, loadEnvFile, reportConfigError } from "./src/config.js";
 import {
   enabledTaskNames,
   idle,
@@ -11,8 +11,22 @@ import { log, silenceLibraryLogs } from "./src/log.js";
 
 loadEnvFile();
 silenceLibraryLogs();
-const config = loadConfig();
-const enabled = enabledTaskNames(config);
+
+// A configuration error exits with status 1 (after one notification), so it isn't mistaken for a
+// clean stop; with a restart policy, Docker keeps retrying until the configuration is fixed.
+let config, enabled, groups;
+try {
+  config = loadConfig();
+  enabled = enabledTaskNames(config);
+  if (enabled.length === 0) {
+    throw new Error("No tasks enabled: set at least one ENABLE_* variable to true");
+  }
+  groups = scheduleGroups(config, enabled);
+} catch (err) {
+  await reportConfigError(err);
+  process.exit(1);
+}
+await clearConfigError();
 
 for (const variable of unknownCronVariables(config)) {
   log.warn(`Ignoring ${variable}: no task with that name`);
@@ -30,7 +44,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 
-for (const [expression, names] of scheduleGroups(config, enabled)) {
+for (const [expression, names] of groups) {
   const task = cron.schedule(
     expression,
     async () => {
@@ -46,7 +60,6 @@ for (const [expression, names] of scheduleGroups(config, enabled)) {
   scheduled.push(task);
 }
 
-if (enabled.length === 0) log.warn("No tasks enabled");
 if (config.notifications.length > 0) {
   log.info(`Notifications: ${config.notifications.map((channel) => channel.name).join(", ")}`);
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { createServer } from "node:http";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -85,4 +86,65 @@ describe("index-cron.js", () => {
       assert.match(output, /INFO Received SIGTERM, stopping/);
     },
   );
+});
+
+describe("index-cron.js configuration errors", () => {
+  const indexCron = fileURLToPath(new URL("../index-cron.js", import.meta.url));
+  const run = async (cwd, env) => {
+    const child = spawn(process.execPath, [indexCron], {
+      cwd,
+      env: { PATH: process.env.PATH, ...env },
+    });
+    let output = "";
+    child.stdout.on("data", (chunk) => (output += chunk));
+    child.stderr.on("data", (chunk) => (output += chunk));
+    const [code] = await once(child, "exit");
+    return { code, output };
+  };
+
+  it("exits with status 1 when no task is enabled", { timeout: 10_000 }, async (t) => {
+    const cwd = await mkdtemp(join(tmpdir(), "actual-tasks-"));
+    t.after(() => rm(cwd, { recursive: true, force: true }));
+    const { code, output } = await run(cwd, {
+      ACTUAL_SERVER_URL: "http://localhost:1",
+      ACTUAL_SERVER_PASSWORD: "p",
+      ACTUAL_SYNC_ID: "s",
+    });
+    assert.equal(code, 1);
+    assert.match(output, /ERROR Invalid configuration: No tasks enabled/);
+    assert.doesNotMatch(output, /at .*\.js:\d+/);
+  });
+
+  it("notifies a configuration error once until it changes", { timeout: 10_000 }, async (t) => {
+    const cwd = await mkdtemp(join(tmpdir(), "actual-tasks-"));
+    const received = [];
+    const server = createServer((req, res) => {
+      let body = "";
+      req.on("data", (chunk) => (body += chunk));
+      req.on("end", () => {
+        received.push(JSON.parse(body));
+        res.end();
+      });
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    t.after(() => {
+      server.close();
+      return rm(cwd, { recursive: true, force: true });
+    });
+    const env = {
+      NOTIFICATION_URL: `generic+http://127.0.0.1:${server.address().port}/hook`,
+    };
+
+    for (let i = 0; i < 2; i++) assert.equal((await run(cwd, env)).code, 1);
+    await run(cwd, { ...env, ACTUAL_SERVER_URL: "http://localhost:1" });
+
+    assert.deepEqual(
+      received.map(({ message }) => message),
+      [
+        "Missing environment variable(s): ACTUAL_SERVER_URL, ACTUAL_SERVER_PASSWORD, ACTUAL_SYNC_ID",
+        "Missing environment variable(s): ACTUAL_SERVER_PASSWORD, ACTUAL_SYNC_ID",
+      ],
+    );
+  });
 });

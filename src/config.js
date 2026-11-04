@@ -1,4 +1,7 @@
-import { parseNotificationUrls } from "./notify.js";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { log } from "./log.js";
+import { notify, parseNotificationUrls } from "./notify.js";
 
 const DEFAULT_CRON_EXPRESSION = "0 */4 * * *";
 
@@ -53,6 +56,33 @@ export function collectAccountMapping(env, prefix) {
   return mapping;
 }
 
+const dataDirOf = (env) => env.ACTUAL_DATA_DIR || "./temp_data_actual";
+// The last configuration error notified, so a container restarting on it notifies once.
+const configErrorFile = (env) => join(dataDirOf(env), "config-error");
+
+/**
+ * Logs a configuration error and notifies it through NOTIFICATION_URL when that is valid, once
+ * until the error changes.
+ */
+export async function reportConfigError(err, env = process.env) {
+  log.error(`Invalid configuration: ${err.message}`);
+  let channels;
+  try {
+    channels = parseNotificationUrls(env.NOTIFICATION_URL);
+  } catch {
+    return;
+  }
+  const file = configErrorFile(env);
+  if ((await readFile(file, "utf8").catch(() => null)) === err.message) return;
+  await notify(channels, `❌ actual-tasks: invalid configuration\n${err.message}`);
+  await mkdir(dataDirOf(env), { recursive: true })
+    .then(() => writeFile(file, err.message))
+    .catch(() => {});
+}
+
+/** Forgets the last configuration error, once the configuration is valid again. */
+export const clearConfigError = (env = process.env) => rm(configErrorFile(env), { force: true });
+
 export function loadConfig(env = process.env) {
   requireEnv(env, ["ACTUAL_SERVER_URL", "ACTUAL_SERVER_PASSWORD", "ACTUAL_SYNC_ID"]);
 
@@ -62,7 +92,7 @@ export function loadConfig(env = process.env) {
       password: env.ACTUAL_SERVER_PASSWORD,
       filePassword: env.ACTUAL_FILE_PASSWORD || "",
       syncId: env.ACTUAL_SYNC_ID,
-      dataDir: env.ACTUAL_DATA_DIR || "./temp_data_actual",
+      dataDir: dataDirOf(env),
     },
     cronExpression: env.CRON_EXPRESSION || DEFAULT_CRON_EXPRESSION,
     // Per-task schedules, e.g. FIX_PAYEES_CRON -> { "fix-payees": "..." }.
