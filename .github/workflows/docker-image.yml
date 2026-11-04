@@ -47,10 +47,13 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.IMAGE }}
+          # The checked-out tag, not the commit the workflow ran on, for the sha tag and labels.
+          context: git
+          # X.Y and latest move only on a release, not when re-publishing an old tag by hand (a
+          # manual run of Release still moves them).
           tags: |
             type=semver,pattern={{version}},value=${{ inputs.tag || github.ref_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag || github.ref_name }}
-            # Not when re-publishing an old tag by hand; a manual run of Release still moves latest.
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag || github.ref_name }},enable=${{ github.event_name != 'workflow_dispatch' || github.workflow == 'Release' }}
             type=raw,value=latest,enable=${{ github.event_name != 'workflow_dispatch' || github.workflow == 'Release' }}
             type=sha
 

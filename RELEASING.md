@@ -13,7 +13,8 @@ lockfile metadata don't count as changes.
 
 The GitHub release is created before the image is pushed. If publishing fails, the release exists
 without an image: rerun the failed **Docker Image Publish** job, or run **Docker Image Publish →
-Run workflow** with that tag. Republishing a tag by hand leaves `latest` where it is. A manual run of
+Run workflow** with that tag. Republishing a tag by hand only moves `X.Y.Z` and `sha-<commit>`,
+never `latest` or `X.Y`, so republishing an old tag can't move them back. A manual run of
 **Release** releases `main` even when nothing changed.
 
 The git tag is the version source of truth. The `version` in `package.json` is not updated and

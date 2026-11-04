@@ -37,3 +37,6 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: false
           cache-from: type=gha
+          # On a release, save the layers so the publish job reuses them instead of building the
+          # image a second time under QEMU. PR caches are scoped to the PR, so they aren't saved.
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=max' || '' }}
