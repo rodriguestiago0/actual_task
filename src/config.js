@@ -1,26 +1,12 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { stringToBoolean } from "./bool.js";
 import { log } from "./log.js";
 import { notify, parseNotificationUrls } from "./notify.js";
 
-const DEFAULT_CRON_EXPRESSION = "0 */4 * * *";
+export { stringToBoolean };
 
-export function stringToBoolean(value) {
-  switch (value?.toLowerCase().trim()) {
-    case "true":
-    case "yes":
-    case "1":
-      return true;
-    case "false":
-    case "no":
-    case "0":
-    case "":
-    case undefined:
-      return false;
-    default:
-      throw new Error(`Invalid boolean value: "${value}"`);
-  }
-}
+const DEFAULT_CRON_EXPRESSION = "0 */4 * * *";
 
 function requireEnv(env, names) {
   const missing = names.filter((name) => !env[name]);
@@ -48,10 +34,19 @@ export function collectAccountMapping(env, prefix) {
   requireEnv(env, keys(""));
   const mapping = [entry(keys(""))];
 
-  for (let i = 1; ; i++) {
+  let i = 1;
+  for (; ; i++) {
     const numbered = keys(`_${i}`);
     if (numbered.some((key) => !env[key])) break;
     mapping.push(entry(numbered));
+  }
+  // Numbering stops at the first incomplete set, so anything numbered after it is ignored.
+  const numbered = new RegExp(`^${prefix}_(?:ACCOUNT|ACTUAL_ACCOUNT|ACTUAL_PAYEE_NAME)_(\\d+)$`);
+  const ignored = Object.keys(env)
+    .filter((key) => env[key] && Number(numbered.exec(key)?.[1]) >= i)
+    .sort();
+  if (ignored.length > 0) {
+    log.warn(`Ignoring ${ignored.join(", ")}: ${keys(`_${i}`).join(", ")} must all be set first`);
   }
   return mapping;
 }
@@ -123,8 +118,12 @@ export function loadConfig(env = process.env) {
       "INTEREST_RATE",
     ]);
     const interestRate = Number(env.INTEREST_RATE);
-    if (!Number.isFinite(interestRate)) {
-      throw new Error(`INTEREST_RATE must be a number, got "${env.INTEREST_RATE}"`);
+    // A rate written as a percentage (5.399) would be read as 0.005399%.
+    if (!Number.isInteger(interestRate) || interestRate <= 0 || interestRate >= 100_000) {
+      throw new Error(
+        "INTEREST_RATE must be the annual rate in % multiplied by 1000 (5.399% is 5399), " +
+          `got "${env.INTEREST_RATE}"`,
+      );
     }
     config.mortgage = {
       payeeId: env.MORTGAGE_PAYEE_ID,
@@ -138,6 +137,11 @@ export function loadConfig(env = process.env) {
 
   if (stringToBoolean(env.ENABLE_PAYEE_RENAME)) {
     requireEnv(env, ["PAYEE_REGEX_MATCH"]);
+    try {
+      new RegExp(env.PAYEE_REGEX_MATCH, "gis");
+    } catch (err) {
+      throw new Error(`PAYEE_REGEX_MATCH is not a valid regex: ${err.message}`, { cause: err });
+    }
     config.payeeRename = { regex: env.PAYEE_REGEX_MATCH };
   }
 

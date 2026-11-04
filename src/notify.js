@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { stringToBoolean } from "./bool.js";
 import { log } from "./log.js";
 
 // Notification URLs use the Shoutrrr format, so URLs written for Watchtower work here too.
@@ -13,7 +14,6 @@ const list = (value) =>
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-const isYes = (value) => ["yes", "true", "1"].includes(value?.toLowerCase());
 
 /** First line of the text is the title, the rest is the message. */
 function split(text) {
@@ -89,9 +89,7 @@ const services = {
     }
     const implicit = encryption === "implicittls" || (encryption === "auto" && port === 465);
     // Shoutrrr's usestarttls=No turns STARTTLS off, like encryption=None.
-    const startTls = !["no", "false", "0"].includes(
-      url.searchParams.get("usestarttls")?.toLowerCase(),
-    );
+    const startTls = stringToBoolean(url.searchParams.get("usestarttls") || "yes");
     const plain = encryption === "none" || (!implicit && !startTls);
     const transport = nodemailer.createTransport({
       host: url.hostname,
@@ -126,14 +124,15 @@ const services = {
   gotify(url) {
     const { prefix, last: token } = lastSegment(url.pathname);
     if (!url.host || !token) throw new Error("expected gotify://HOST/TOKEN");
-    const scheme = isYes(url.searchParams.get("disabletls")) ? "http" : "https";
+    const scheme = stringToBoolean(url.searchParams.get("disabletls")) ? "http" : "https";
     return (text) =>
       postJson(`${scheme}://${url.host}/${prefix}message`, split(text), { "X-Gotify-Key": token });
   },
 
   generic(url, transport) {
     if (!url.host) throw new Error("expected generic+https://HOST/PATH");
-    const scheme = transport ?? (isYes(url.searchParams.get("disabletls")) ? "http" : "https");
+    const scheme =
+      transport ?? (stringToBoolean(url.searchParams.get("disabletls")) ? "http" : "https");
     if (!["http", "https"].includes(scheme)) throw new Error("expected generic+https://HOST/PATH");
     const target = new URL(`${scheme}://${url.host}${url.pathname}`);
     for (const [key, value] of url.searchParams) {

@@ -73,6 +73,22 @@ describe("calculateMortgage", () => {
     assert.equal(callsTo(api, "importTransactions").length, 1);
   });
 
+  it("warns instead of recording a principal that can't be part of the payment", async () => {
+    for (const [amount, rate] of [
+      [80_000, 5399], // a refund from the mortgage payee
+      [-80_000, 5_399_000], // the rate 1000 times too high
+    ]) {
+      const api = fakeApi({
+        accounts,
+        transactions: { main: [{ payee: "bank", amount, date: today }] },
+        balances: { loan: -12_000_000 },
+      });
+      const warning = await calculateMortgage(api, { ...mortgage, interestRate: rate });
+      assert.match(warning, /^Not recording a principal of .* check INTEREST_RATE/);
+      assert.equal(callsTo(api, "importTransactions").length, 0);
+    }
+  });
+
   it("does nothing without a recent payment", async () => {
     const api = fakeApi({ accounts });
     await calculateMortgage(api, mortgage);

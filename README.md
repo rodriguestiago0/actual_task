@@ -53,7 +53,8 @@ show payee IDs in the app; get them from the API (`getPayees()`).
 ### Fix payees
 
 Removes every match of the regex `PAYEE_REGEX_MATCH` from payee names, collapses repeated spaces
-and trims the result. The match ignores case (flags `gis`).
+and trims the result. The match ignores case (flags `gis`). An invalid regex stops the program at
+startup.
 
 | Regex                                                        | Before                                     | After              |
 | ------------------------------------------------------------ | ------------------------------------------ | ------------------ |
@@ -120,7 +121,12 @@ On each run the task:
 2. Skips if the mortgage account already has a transaction from that payee dated on or after
    the payment.
 3. Computes interest as `mortgage balance × rate / 12` and records `payment amount − interest` as a
-   positive transaction dated today.
+   positive transaction dated today. When that isn't part of the payment (more than the payment,
+   or not positive, e.g. a refund or a wrong `INTEREST_RATE`), it records nothing and warns
+   instead.
+
+`INTEREST_RATE` must be a whole number between 1 and 99999; a percentage such as `5.399` is
+rejected at startup.
 
 `MORTGAGE_PAYEE_NAME` must be the name of `MORTGAGE_PAYEE_ID`. Otherwise step 2 never finds the
 earlier transaction and the principal is recorded on every run.
@@ -142,7 +148,7 @@ difference adds an adjustment transaction for it, so the schedule sets how often
 
 To sync more accounts, add the same three account variables with a `_1`, `_2`, ... suffix (e.g.
 `GHOSTFOLIO_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_PAYEE_NAME_1`). Numbering
-stops at the first set with a missing variable.
+stops at the first set with a missing variable; the variables it ignores are logged at startup.
 
 Ghostfolio balances are in the Ghostfolio account's own currency (its `value`, not
 `valueInBaseCurrency`), not your base currency. Map each one to an Actual account in that currency.
@@ -175,7 +181,8 @@ Runs Actual's bank sync for all linked accounts (GoCardless, SimpleFIN, ...), as
 ## Scheduling
 
 `npm start` runs all enabled tasks on `CRON_EXPRESSION`, which defaults to `0 */4 * * *` (every 4
-hours, standard 5-field cron syntax). To give one task its own schedule, set a variable named after
+hours, standard 5-field cron syntax; a 6th leading field sets seconds, so `* * * * * *` runs every
+second). To give one task its own schedule, set a variable named after
 its command in upper case with `_CRON` appended:
 
 `CALCULATE_MORTGAGE_CRON`, `FIX_PAYEES_CRON`, `MERGE_RULES_CRON`, `GHOSTFOLIO_SYNC_CRON`, `WEALTHFOLIO_SYNC_CRON`,
@@ -222,6 +229,9 @@ plain-HTTP servers, add `?scheme=http` (ntfy) or `?disabletls=yes` (Gotify).
 ## Logs
 
 Output is timestamped. The Actual API's own verbose logging is hidden unless `DEBUG=1`.
+
+Boolean variables (`ENABLE_*`, `RUN_ON_START`, ...) accept `true`/`yes`/`1` and `false`/`no`/`0`
+in any case; anything else stops the program at startup.
 
 ## Development
 

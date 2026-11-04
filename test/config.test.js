@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import { collectAccountMapping, loadConfig, stringToBoolean } from "../src/config.js";
+import { log } from "../src/log.js";
 
 const base = {
   ACTUAL_SERVER_URL: "https://actual.example",
@@ -42,6 +43,27 @@ describe("collectAccountMapping", () => {
     ]);
   });
 
+  it("warns about numbered variables after the first incomplete set", (t) => {
+    const warn = mock.method(log, "warn", () => {});
+    t.after(() => warn.mock.restore());
+    const mapping = collectAccountMapping(
+      {
+        X_ACCOUNT: "a",
+        X_ACTUAL_ACCOUNT: "A",
+        X_ACTUAL_PAYEE_NAME: "Pa",
+        X_ACCOUNT_2: "c",
+        X_ACTUAL_ACCOUNT_2: "C",
+        X_ACTUAL_PAYEE_NAME_2: "Pc",
+      },
+      "X",
+    );
+    assert.equal(mapping.length, 1);
+    assert.deepEqual(warn.mock.calls[0].arguments, [
+      "Ignoring X_ACCOUNT_2, X_ACTUAL_ACCOUNT_2, X_ACTUAL_PAYEE_NAME_2: " +
+        "X_ACCOUNT_1, X_ACTUAL_ACCOUNT_1, X_ACTUAL_PAYEE_NAME_1 must all be set first",
+    ]);
+  });
+
   it("requires the base triple", () => {
     assert.throws(
       () => collectAccountMapping({ X_ACCOUNT: "a", X_ACTUAL_ACCOUNT: "A" }, "X"),
@@ -74,8 +96,25 @@ describe("loadConfig", () => {
       INTEREST_RATE: "5399",
     };
     assert.equal(loadConfig(env).mortgage.interestRate, 5399);
-    assert.throws(() => loadConfig({ ...env, INTEREST_RATE: "abc" }), /must be a number/);
+    for (const rate of ["abc", "5.399", "0", "-5399", "100000"]) {
+      assert.throws(
+        () => loadConfig({ ...env, INTEREST_RATE: rate }),
+        /INTEREST_RATE must be the annual rate in % multiplied by 1000 \(5\.399% is 5399\)/,
+      );
+    }
     assert.throws(() => loadConfig({ ...env, MAIN_ACCOUNT_ID: "" }), /MAIN_ACCOUNT_ID/);
+  });
+
+  it("rejects an invalid PAYEE_REGEX_MATCH at startup", () => {
+    const env = { ...base, ENABLE_PAYEE_RENAME: "true" };
+    assert.equal(
+      loadConfig({ ...env, PAYEE_REGEX_MATCH: "Compra [0-9]{4}" }).payeeRename.regex,
+      "Compra [0-9]{4}",
+    );
+    assert.throws(
+      () => loadConfig({ ...env, PAYEE_REGEX_MATCH: "Compra [0-9" }),
+      /PAYEE_REGEX_MATCH is not a valid regex/,
+    );
   });
 
   it("configures rule merging", () => {

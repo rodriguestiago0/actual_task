@@ -15,6 +15,10 @@ export function principalAmount(balance, payment, interestRate) {
   return -(payment + interest);
 }
 
+/**
+ * Records the principal of the last payment, returning a warning instead when the computed
+ * principal can't be part of that payment.
+ */
 export async function calculateMortgage(
   api,
   { payeeId, payeeName, mortgageAccountId, mainAccountId, interestRate },
@@ -38,6 +42,15 @@ export async function calculateMortgage(
 
   const balance = await api.getAccountBalance(mortgageAccountId);
   const amount = principalAmount(balance, lastPayment.amount, interestRate);
+  // Only part of a payment (a negative amount) can go to the principal.
+  if (amount <= 0 || amount > -lastPayment.amount) {
+    const warning =
+      `Not recording a principal of ${amount / 100} for the payment of ` +
+      `${lastPayment.amount / 100} on ${lastPayment.date}: check INTEREST_RATE and that ` +
+      "transaction";
+    log.warn(warning);
+    return warning;
+  }
   log.info(`Recording principal of ${amount / 100} for payment on ${lastPayment.date}`);
   await importTransactions(api, mortgageAccountId, [
     { date: formatDate(), amount, payee_name: payeeName },

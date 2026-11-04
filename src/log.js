@@ -1,7 +1,15 @@
 import { format } from "node:util";
+import { stringToBoolean } from "./bool.js";
 
-// Read on use: .env is loaded after this module is imported.
-const debugEnabled = () => ["1", "true", "yes"].includes(process.env.DEBUG?.toLowerCase().trim());
+// Read on use: .env is loaded after this module is imported. Not an error when invalid, as other
+// tools read DEBUG too (e.g. DEBUG=express:*).
+function debugEnabled() {
+  try {
+    return stringToBoolean(process.env.DEBUG);
+  } catch {
+    return false;
+  }
+}
 
 function write(stream, level, args) {
   stream.write(`${new Date().toISOString()} ${level} ${format(...args)}\n`);
