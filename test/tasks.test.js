@@ -114,6 +114,15 @@ describe("findDuplicatePayees", () => {
     ]);
     assert.deepEqual(duplicates, [{ name: "Cafe", ids: ["1", "2"] }]);
   });
+
+  it("ignores case, as Actual does when it matches payee names", () => {
+    const duplicates = findDuplicatePayees([
+      { id: "1", name: "Cafe" },
+      { id: "2", name: "CAFE" },
+      { id: "3", name: "cafe" },
+    ]);
+    assert.deepEqual(duplicates, [{ name: "Cafe", ids: ["1", "2", "3"] }]);
+  });
 });
 
 describe("fixPayees", () => {
@@ -139,6 +148,12 @@ describe("fixPayees", () => {
     api.updatePayee = async () => {};
     await fixPayees(api, { regex: "Compra [0-9]{4}" });
     assert.deepEqual(callsTo(api, "mergePayees"), [["mergePayees", "1", ["2"]]]);
+  });
+
+  it("doesn't rename transfer payees, which keep their account's name", async () => {
+    const api = fakeApi({ payees: [{ id: "1", name: "Visa 1234", transfer_acct: "visa" }] });
+    await fixPayees(api, { regex: " [0-9]{4}" });
+    assert.equal(callsTo(api, "updatePayee").length, 0);
   });
 
   it("matches payee names case-insensitively", async () => {

@@ -57,8 +57,9 @@ and trims the result. The match ignores case (flags `gis`).
 | `Compra [0-9]{4}\|Contactless\|Compra:\|[0-9]{4}-[0-9]{0,3}` | `Compra 1234 Continente Porto Contactless` | `Continente Porto` |
 | (any)                                                        | `Continente       Porto`                   | `Continente Porto` |
 
-The task then **merges every pair of payees with exactly the same name**, not only the ones it
-renamed. Transfer payees are never merged.
+The task then **merges every pair of payees with the same name**, ignoring case as Actual does
+(`Cafe` and `CAFE`), not only the ones it renamed. Transfer payees, which are named after their
+account, are never renamed or merged.
 
 ### Merge rules
 
