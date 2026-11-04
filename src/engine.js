@@ -110,6 +110,16 @@ function runExclusive(fn) {
 /** Resolves once every queued task run has finished. */
 export const idle = () => queue;
 
+let stopping = false;
+/**
+ * Lets the running task finish but starts no other task, in this batch or a queued one. Resolves
+ * once the running task has finished.
+ */
+export function stop() {
+  stopping = true;
+  return queue;
+}
+
 // Tasks whose last run failed, so the next successful run can be reported as a recovery.
 const failing = new Set();
 // Each task's last warning, so the same warning is only notified once.
@@ -123,6 +133,10 @@ export function runTasks(config, names, registry = tasks) {
   return runExclusive(async () => {
     let ok = true;
     for (const name of names) {
+      if (stopping) {
+        log.info(`Stopping: not running ${name}`);
+        continue;
+      }
       log.info(`Running ${name}`);
       try {
         const warning = await registry[name].run(config);

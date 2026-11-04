@@ -2,9 +2,9 @@ import cron from "node-cron";
 import { clearConfigError, loadConfig, loadEnvFile, reportConfigError } from "./src/config.js";
 import {
   enabledTaskNames,
-  idle,
   runTasks,
   scheduleGroups,
+  stop,
   unknownCronVariables,
 } from "./src/engine.js";
 import { log, silenceLibraryLogs } from "./src/log.js";
@@ -38,8 +38,8 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, async () => {
     log.info(`Received ${signal}, stopping`);
     await Promise.all(scheduled.map((task) => task.stop()));
-    // Let a running task finish so its changes are synced before exiting.
-    await idle();
+    // Let the running task finish so its changes are synced, skipping the rest of the batch.
+    await stop();
     process.exit(0);
   });
 }

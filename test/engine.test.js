@@ -57,6 +57,15 @@ describe("withBudget", () => {
     );
   });
 
+  it("only warns when shutdown fails after syncing", async (t) => {
+    const warn = mock.method(log, "warn", () => {});
+    t.after(() => warn.mock.restore());
+    const api = fakeApi();
+    api.shutdown = async () => Promise.reject(new Error("shutdown failed"));
+    assert.equal(await withBudget(actualConfig, async () => "done", api), "done");
+    assert.deepEqual(warn.mock.calls[0].arguments, ["Actual shutdown failed:", "shutdown failed"]);
+  });
+
   it("reports the callback's error when shutdown also fails", async () => {
     const api = fakeApi();
     api.shutdown = async () => Promise.reject(new Error("shutdown failed"));

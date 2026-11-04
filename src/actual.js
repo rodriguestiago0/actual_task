@@ -34,7 +34,10 @@ export function dryRunApi(api, skipped) {
 
 /**
  * Downloads a fresh copy of the budget, runs fn(api), then syncs and always shuts down, returning
- * fn's result. In a dry run, fn gets an API that can't change the budget, and the task's changes
+ * fn's result. Actual pushes each change to the server about a second after it's made, and
+ * shutdown() pushes what's left, so a task that fails halfway keeps the changes it made. The
+ * explicit sync is still needed: it's the only one that reports a failed push (shutdown() ignores
+ * sync errors). In a dry run, fn gets an API that can't change the budget, and the task's changes
  * aren't synced. Actual's own schedule service still runs while the budget downloads, though: it
  * posts due "automatically add" schedules and syncs them, as opening the app would.
  */
@@ -70,7 +73,8 @@ export async function withBudget(
     await api.shutdown().catch(() => {});
     throw err;
   }
-  await api.shutdown();
+  // Everything is synced by now, so a failure here doesn't fail the task.
+  await api.shutdown().catch((err) => log.warn("Actual shutdown failed:", err.message));
   return result;
 }
 

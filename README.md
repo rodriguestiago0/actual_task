@@ -30,6 +30,9 @@ A dry run still opens the budget the way the app does, so Actual's schedule serv
 schedules set to "automatically add" are posted and synced, and finished one-off schedules are
 marked completed, as opening the app would. The API offers no way to stop this.
 
+Changes reach the server while the task runs (Actual pushes each one about a second after it's
+made), so a task that fails halfway keeps the changes it made before the error.
+
 > **Back up your budget first.** Renaming and merging payees, and merging rules, can't be undone.
 
 ## Tasks
@@ -181,8 +184,8 @@ its command in upper case with `_CRON` appended:
 `npm start` exits with status 1 when the configuration is invalid or no task is enabled, after
 sending the error as a notification when `NOTIFICATION_URL` is valid (once until the error changes,
 so a container restarting on it doesn't notify on every restart). Names that match no task are logged as a warning and ignored. Tasks never run at the same time. Set `RUN_ON_START=true` to
-also run every enabled task once at startup. On `SIGTERM`/`SIGINT`, a running task finishes
-before the process exits. Schedules and transaction dates use the local time
+also run every enabled task once at startup. On `SIGTERM`/`SIGINT`, the running task finishes
+before the process exits, and the tasks left in its batch are skipped. Schedules and transaction dates use the local time
 zone (`TZ`).
 
 ## Notifications
