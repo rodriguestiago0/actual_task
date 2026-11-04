@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { scheduleGroups, unknownCronVariables } from "../src/engine.js";
+import { enabledTaskNames, scheduleGroups, unknownCronVariables } from "../src/engine.js";
 
 const config = (taskCronExpressions = {}) => ({
   cronExpression: "0 */4 * * *",
@@ -146,5 +146,17 @@ describe("index-cron.js configuration errors", () => {
         "Missing environment variable(s): ACTUAL_SERVER_PASSWORD, ACTUAL_SYNC_ID",
       ],
     );
+  });
+});
+
+describe("enabledTaskNames", () => {
+  it("runs bank sync before the tasks that read its transactions", () => {
+    const names = enabledTaskNames({
+      bankSync: true,
+      mortgage: {},
+      payeeRename: {},
+      ruleMerge: true,
+    });
+    assert.deepEqual(names, ["bank-sync", "calculate-mortgage", "fix-payees", "merge-rules"]);
   });
 });

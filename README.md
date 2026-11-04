@@ -43,12 +43,15 @@ made), so a task that fails halfway keeps the changes it made before the error.
 
 | Command              | Enabled by                    |
 | -------------------- | ----------------------------- |
+| `bank-sync`          | `ENABLE_BANK_SYNC`            |
+| `calculate-mortgage` | `ENABLE_INTEREST_CALCULATION` |
 | `fix-payees`         | `ENABLE_PAYEE_RENAME`         |
 | `merge-rules`        | `ENABLE_RULE_MERGE`           |
-| `calculate-mortgage` | `ENABLE_INTEREST_CALCULATION` |
 | `ghostfolio-sync`    | `ENABLE_GHOSTFOLIO_SYNC`      |
 | `wealthfolio-sync`   | `ENABLE_WEALTHFOLIO_SYNC`     |
-| `bank-sync`          | `ENABLE_BANK_SYNC`            |
+
+Tasks on the same schedule run in this order, so bank sync imports new transactions before the
+mortgage, payee and rule tasks look at them.
 
 Account IDs are in the app's URL when you open an account (`/accounts/<ID>`). A task fails before
 changing anything when one of its account IDs isn't an open account in the budget. Actual doesn't
