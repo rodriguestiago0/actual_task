@@ -78,7 +78,17 @@ different actions are left alone and logged as a warning, for you to fix in Actu
 
 - the same value, e.g. `payee is Doce Alto → Coffee` and `payee is Doce Alto → Restaurant`;
 - a "contains" value found in another rule's value, e.g. `imported payee contains Continente →
-Continente` and `imported payee is Continente Bom Dia → Bom Dia`.
+Continente` and `imported payee is Continente Bom Dia → Bom Dia`;
+- a merge that would change the order of rules that can match the same transaction, when one sets
+  a field the other sets or reads. Actual runs each stage's rules from the least to the most
+  specific ("is" scores more than "is one of", which scores more than "contains"), then by ID, and
+  the last one wins. E.g. merging `payee is Zara → Gifts` and `payee is Mango → Gifts` would move
+  them before `imported payee is Zara Lisboa → Clothes`, so a Zara Lisboa purchase would end as
+  Clothes instead of Gifts. Rules that need different values of the same field, e.g. `payee is
+Zara` and `payee is Pingo Doce`, can't match the same transaction and are merged as usual.
+
+Two "contains" rules always count as able to match the same transaction, as both values can be
+found in one text (`contains ZARA` and `contains LISBOA`).
 
 When run by the scheduler, these conflicts are also sent as a notification, once until they change.
 
