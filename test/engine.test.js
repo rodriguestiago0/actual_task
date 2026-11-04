@@ -100,7 +100,7 @@ describe("importTransactions", () => {
   const logged = async (t, api) => {
     const info = mock.method(log, "info", () => {});
     t.after(() => info.mock.restore());
-    await importTransactions(api, "acc", [{ amount: 1 }]);
+    await importTransactions(api, "acc", [{ date: "2026-11-01", amount: 1 }]);
     return info.mock.calls.map((call) => call.arguments[0]);
   };
 
