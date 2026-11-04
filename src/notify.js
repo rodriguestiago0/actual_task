@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import { stringToBoolean } from "./bool.js";
-import { log } from "./log.js";
+import { describeError, log } from "./log.js";
 
 // Notification URLs use the Shoutrrr format, so URLs written for Watchtower work here too.
 
@@ -180,7 +180,7 @@ export async function notify(channels = [], text) {
       try {
         await send(text);
       } catch (err) {
-        log.warn(`${name} notification failed: ${err.message}`);
+        log.warn(`${name} notification failed: ${describeError(err)}`);
       }
     }),
   );

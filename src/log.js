@@ -27,3 +27,10 @@ export function silenceLibraryLogs() {
   if (debugEnabled()) return;
   console.log = console.info = console.debug = () => {};
 }
+
+/** An error's message with its code, e.g. "fetch failed (ECONNREFUSED)" or Actual's "network-failure". */
+export function describeError(err) {
+  const code = err?.code ?? err?.cause?.code ?? err?.cause?.cause?.code;
+  const message = err?.message ?? String(err);
+  return code && !message.includes(code) ? `${message} (${code})` : message;
+}

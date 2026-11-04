@@ -176,7 +176,8 @@ with a 401 error. Replace it with `GHOSTFOLIO_ACCESS_TOKEN`.
 ### Bank sync
 
 Runs Actual's bank sync for all linked accounts (GoCardless, SimpleFIN, ...), as if you clicked
-**Bank Sync** in the app. Accounts must already be linked in Actual.
+**Bank Sync** in the app. Accounts must already be linked in Actual. It logs how many transactions
+it added and matched; when several accounts fail, Actual reports only the first error.
 
 ## Scheduling
 

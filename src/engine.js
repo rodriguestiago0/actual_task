@@ -1,7 +1,8 @@
 import cron from "node-cron";
 import { withBudget } from "./actual.js";
-import { log } from "./log.js";
+import { describeError, log } from "./log.js";
 import { notify } from "./notify.js";
+import { bankSync } from "./tasks/bank.js";
 import { calculateMortgage } from "./tasks/mortgage.js";
 import { fixPayees } from "./tasks/payees.js";
 import {
@@ -13,6 +14,10 @@ import { mergeRules } from "./tasks/rules.js";
 
 // Warnings are notified in one message, which Discord limits to 2000 characters.
 const WARNING_LIMIT = 1800;
+
+/** The text cut to fit in one notification. */
+export const truncate = (text) =>
+  text.length > WARNING_LIMIT ? `${text.slice(0, WARNING_LIMIT)}… (see the logs)` : text;
 
 /** Joins as many items as fit in WARNING_LIMIT, counting the rest, or undefined without items. */
 export function summarize(items, noun) {
@@ -71,7 +76,7 @@ export const tasks = {
   },
   "bank-sync": {
     enabled: (config) => config.bankSync,
-    run: (config) => withBudget(config.actual, (api) => api.runBankSync()),
+    run: (config) => withBudget(config.actual, bankSync),
   },
 };
 
@@ -153,7 +158,10 @@ export function runTasks(config, names, registry = tasks) {
         ok = false;
         failing.add(name);
         log.error(`${name} failed:`, err);
-        await notify(config.notifications, `❌ actual-tasks: ${name} failed\n${err.message}`);
+        await notify(
+          config.notifications,
+          `❌ actual-tasks: ${name} failed\n${truncate(describeError(err))}`,
+        );
       }
     }
     return ok;

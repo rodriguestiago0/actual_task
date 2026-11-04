@@ -2,7 +2,7 @@
 import { parseArgs } from "node:util";
 import { loadConfig, loadEnvFile } from "./src/config.js";
 import { tasks } from "./src/engine.js";
-import { silenceLibraryLogs } from "./src/log.js";
+import { describeError, log, silenceLibraryLogs } from "./src/log.js";
 
 const USAGE = `
   Usage
@@ -21,13 +21,19 @@ const USAGE = `
     -h, --help           Show this help
 `;
 
-const { positionals, values } = parseArgs({
-  allowPositionals: true,
-  options: {
-    help: { type: "boolean", short: "h" },
-    "dry-run": { type: "boolean", short: "n" },
-  },
-});
+let positionals, values;
+try {
+  ({ positionals, values } = parseArgs({
+    allowPositionals: true,
+    options: {
+      help: { type: "boolean", short: "h" },
+      "dry-run": { type: "boolean", short: "n" },
+    },
+  }));
+} catch (err) {
+  console.error(`${err.message}\n${USAGE}`);
+  process.exit(1);
+}
 const [command] = positionals;
 
 if (values.help || !command) {
@@ -48,6 +54,7 @@ try {
   config.actual.dryRun = values["dry-run"] ?? false;
   await task.run(config);
 } catch (err) {
-  console.error(err.message);
+  console.error(describeError(err));
+  log.debug(err.stack);
   process.exitCode = 1;
 }
