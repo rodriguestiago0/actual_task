@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
-    paths: [package-lock.json, Dockerfile, index.js, index-cron.js, "src/**"]
+    paths: [package.json, package-lock.json, Dockerfile, index.js, index-cron.js, "src/**"]
   workflow_dispatch:
 
 permissions:
@@ -28,8 +28,8 @@ jobs:
           fetch-tags: true
 
       # Release when anything that goes into the image changed since the last release: code,
-      # Dockerfile or runtime dependencies. Diffing against the last v* tag (not the previous
-      # push) means changes from a cancelled or failed run are picked up by the next one.
+      # Dockerfile, package.json or runtime dependencies. Diffing against the last v* tag (not the
+      # previous push) means changes from a cancelled or failed run are picked up by the next one.
       # Dev-only dependency updates and lockfile metadata (e.g. hasInstallScript) don't count.
       - name: Check whether the image contents changed
         id: check
@@ -44,8 +44,8 @@ jobs:
           elif ! base=$(git describe --tags --abbrev=0 --match 'v*' HEAD 2>/dev/null); then
             echo "No previous release"
             changed=true
-          elif ! git diff --quiet "$base" HEAD -- Dockerfile index.js index-cron.js src; then
-            echo "Code or Dockerfile changed since $base"
+          elif ! git diff --quiet "$base" HEAD -- Dockerfile package.json index.js index-cron.js src; then
+            echo "Code, Dockerfile or package.json changed since $base"
             changed=true
           elif [ "$(git show "$base:package-lock.json" | jq -S "$runtime")" != "$(jq -S "$runtime" package-lock.json)" ]; then
             echo "Runtime dependencies changed since $base"
@@ -78,6 +78,18 @@ jobs:
           latest=$(git tag --list 'v*' --sort=-version:refname | head -n1)
           IFS=. read -r major minor patch <<< "${latest#v}"
           echo "tag=v${major:-1}.${minor:-0}.$(( ${patch:-0} + 1 ))" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN can't create a tag on a commit whose workflow files differ from main's (it
+      # has no `workflows` permission), and the API answers with a bare 403. That happens when a
+      # workflow change lands on main while CI runs. Say so instead; the next release, or a
+      # manual run of this workflow, ships these changes.
+      - name: Check main's workflows match the release commit
+        run: |
+          git fetch --quiet origin main
+          if ! git diff --quiet "$GITHUB_SHA" FETCH_HEAD -- .github/workflows; then
+            echo "::error::main changed .github/workflows since $GITHUB_SHA, so GITHUB_TOKEN can't tag it. Run the Release workflow manually from main."
+            exit 1
+          fi
 
       - name: Create release
         run: >-

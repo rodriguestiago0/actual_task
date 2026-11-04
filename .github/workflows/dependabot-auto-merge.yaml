@@ -4,13 +4,21 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-permissions:
-  contents: read
+permissions: {}
 
+# Dependabot PRs run the workflow file from the PR, so a github-actions update runs the
+# proposed (unreviewed) version of fetch-metadata. It runs in its own job without
+# RELEASE_TOKEN; the job that holds the token runs only the preinstalled gh CLI and
+# never checks out or runs code from the PR.
 jobs:
-  auto-merge:
+  metadata:
     runs-on: ubuntu-latest
     if: github.event.pull_request.user.login == 'dependabot[bot]'
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      dependency-names: ${{ steps.metadata.outputs.dependency-names }}
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
@@ -18,11 +26,18 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # RELEASE_TOKEN (a PAT stored as a Dependabot secret) is used instead of GITHUB_TOKEN
-      # so the resulting merge to main triggers the release workflow.
-      # Only @actual-app/api merges on its own; every other update waits for a review.
+  # RELEASE_TOKEN (a PAT stored as a Dependabot secret) is used instead of GITHUB_TOKEN
+  # so the resulting merge to main triggers the release workflow.
+  # Only @actual-app/api merges on its own; every other update waits for a review.
+  auto-merge:
+    needs: metadata
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      needs.metadata.outputs.dependency-names == '@actual-app/api'
+    permissions: {}
+    steps:
       - name: Approve and enable auto-merge
-        if: steps.metadata.outputs.dependency-names == '@actual-app/api'
         run: |
           gh pr review --approve "$PR_URL"
           gh pr merge --squash --auto "$PR_URL"
