@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatDate } from "../src/actual.js";
+import { dryRunApi, formatDate } from "../src/actual.js";
 import { calculateMortgage, principalAmount } from "../src/tasks/mortgage.js";
 import { cleanPayeeName, findDuplicatePayees, fixPayees } from "../src/tasks/payees.js";
 import { syncBalances } from "../src/tasks/portfolio.js";
@@ -453,6 +453,21 @@ describe("mergeRules", () => {
     assert.deepEqual(await mergeRules(api), []);
     assert.equal(callsTo(api, "updateRule").length, 1);
     assert.deepEqual(callsTo(api, "deleteRule"), [["deleteRule", "2"]]);
+  });
+
+  it("returns a warning for a rule Actual didn't delete, but not in a dry run", async () => {
+    const rules = () => [
+      categoryRule("1", "is", "zara", "clothes"),
+      categoryRule("2", "is", "mango", "clothes"),
+    ];
+    const api = fakeApi({ rules: rules() });
+    // what Actual returns for a rule a schedule uses
+    api.deleteRule = async () => false;
+    const [warning, ...rest] = await mergeRules(api);
+    assert.equal(rest.length, 0);
+    assert.match(warning, /^Actual didn't delete rule 2 after merging it into: /);
+
+    assert.deepEqual(await mergeRules(dryRunApi(fakeApi({ rules: rules() }), new Map())), []);
   });
 
   it("returns the conflicts it left alone", async () => {

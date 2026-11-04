@@ -219,8 +219,9 @@ so the next tasks wait for it.
 ## Notifications
 
 When a task run by the scheduler fails, you get a message (again only when the error changes), and
-another one the next time it succeeds. You also get merge-rules' conflicts and Ghostfolio/Wealthfolio accounts that weren't
-found, had no balance or dropped to 0, once until they change; when there are too many for one message, the rest are counted and
+another one the next time it succeeds. You also get merge-rules' conflicts and rules Actual didn't delete, a failed Wealthfolio
+valuation refresh, and Ghostfolio/Wealthfolio accounts that weren't found, had no balance or
+dropped to 0, once until they change; when there are too many for one message, the rest are counted and
 left in the logs. Runs started from the command line don't
 send notifications.
 
