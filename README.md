@@ -18,8 +18,12 @@ sync. Run them once from the command line or on a schedule, either with Node.js 
 A task only runs when its `ENABLE_*` variable is `true`, including when you run it by hand.
 `node index.js -h` lists the commands.
 
-Each run downloads a fresh copy of the budget into `ACTUAL_DATA_DIR` (default
-`./temp_data_actual`), removing the previous copy first.
+Each run downloads a fresh copy of the budget into a new `run-*` directory in `ACTUAL_DATA_DIR`
+(default `./temp_data_actual`). The budget's database is deleted when the run ends (for an
+end-to-end encrypted budget it's the decrypted copy), and the directory itself by a later run or
+when the process exits. A lock file in that directory keeps runs apart even across processes: a
+`node index.js` run started while the scheduler runs a task (e.g. with `docker exec`) waits for it
+to finish, for up to 15 minutes, and the other way round.
 
 Add `--dry-run` (`-n`) to run a task without saving anything, e.g.
 `node index.js merge-rules --dry-run`. The task reads the budget and logs what it would do as usual;
@@ -191,7 +195,7 @@ its command in upper case with `_CRON` appended:
 
 `npm start` exits with status 1 when the configuration is invalid or no task is enabled, after
 sending the error as a notification when `NOTIFICATION_URL` is valid (once until the error changes,
-so a container restarting on it doesn't notify on every restart). Names that match no task are logged as a warning and ignored. Tasks never run at the same time. Set `RUN_ON_START=true` to
+so a container restarting on it doesn't notify on every restart). Names that match no task are logged as a warning and ignored. Tasks never run at the same time, including runs started by hand (see the lock above). Set `RUN_ON_START=true` to
 also run every enabled task once at startup. On `SIGTERM`/`SIGINT`, the running task finishes
 before the process exits, and the tasks left in its batch are skipped. Schedules and transaction dates use the local time
 zone (`TZ`).
