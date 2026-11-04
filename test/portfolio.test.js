@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import { log } from "../src/log.js";
-import { fetchGhostfolioBalances } from "../src/tasks/portfolio.js";
+import { fetchGhostfolioBalances, fetchWealthfolioBalances } from "../src/tasks/portfolio.js";
 
 const accounts = { accounts: [{ id: "g", value: 12.5, valueInBaseCurrency: 11 }] };
 
@@ -69,5 +69,23 @@ describe("fetchGhostfolioBalances", () => {
 
     assert.equal(balances.get("g"), null);
     assert.ok(warn.mock.calls.some((c) => /Restricted view/.test(c.arguments[0])));
+  });
+});
+
+describe("unexpected responses", () => {
+  it("fails clearly when Ghostfolio returns no account list", async (t) => {
+    mockFetch(t, new Response(""));
+    await assert.rejects(
+      fetchGhostfolioBalances({ serverURL: "https://gf", accessToken: null, token: "jwt" }),
+      /Ghostfolio returned no account list/,
+    );
+  });
+
+  it("fails clearly when Wealthfolio returns no valuation list", async (t) => {
+    mockFetch(t, Response.json({}), Response.json({ error: "x" }));
+    await assert.rejects(
+      fetchWealthfolioBalances({ serverURL: "https://wf" }),
+      /Wealthfolio returned no valuation list/,
+    );
   });
 });

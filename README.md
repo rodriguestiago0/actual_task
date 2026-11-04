@@ -147,6 +147,11 @@ Turn off **Restricted view** in Ghostfolio for this user: it hides the values, a
 a balance are skipped with a warning. Accounts are read from `GET /api/v1/accounts`, or from
 `/api/v1/account` on Ghostfolio before 3.94.0.
 
+An account whose balance drops to exactly 0 while the Actual account isn't empty is skipped with a
+warning, because Ghostfolio reports 0 for an account it has no valuation for. Set
+`GHOSTFOLIO_ALLOW_ZERO_BALANCE=true` (or `WEALTHFOLIO_ALLOW_ZERO_BALANCE=true`) to sync it anyway,
+e.g. after selling everything in it.
+
 Wealthfolio is called without authentication. Before reading balances, the task asks Wealthfolio to
 refresh valuations (`POST /api/v1/portfolio/update`).
 
@@ -182,7 +187,7 @@ zone (`TZ`).
 
 When a task run by the scheduler fails, you get a message, and another one the next time it
 succeeds. You also get merge-rules' conflicts and Ghostfolio/Wealthfolio accounts that weren't
-found or had no balance, once until they change; when there are too many for one message, the rest are counted and
+found, had no balance or dropped to 0, once until they change; when there are too many for one message, the rest are counted and
 left in the logs. Runs started from the command line don't
 send notifications.
 

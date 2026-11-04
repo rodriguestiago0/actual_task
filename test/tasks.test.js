@@ -525,6 +525,24 @@ describe("syncBalances", () => {
     assert.equal(callsTo(api, "importTransactions").length, 0);
   });
 
+  it("skips an account whose balance dropped to exactly 0, unless allowed", async () => {
+    const api = fakeApi({ accounts: open, balances: { A: 12_345 } });
+    const warnings = await syncBalances(api, "Test", accounts, new Map([["w1", 0]]));
+    assert.deepEqual(warnings, [
+      "Test account w1 has a balance of 0, not syncing it (123.45 in Actual). " +
+        "Set TEST_ALLOW_ZERO_BALANCE=true if it really is empty",
+    ]);
+    assert.equal(callsTo(api, "importTransactions").length, 0);
+
+    await syncBalances(api, "Test", accounts, new Map([["w1", 0]]), { allowZero: true });
+    assert.equal(callsTo(api, "importTransactions")[0][2][0].amount, -12_345);
+  });
+
+  it("syncs a balance of 0 when the Actual account is already empty", async () => {
+    const api = fakeApi({ accounts: open, balances: { A: 0 } });
+    assert.deepEqual(await syncBalances(api, "Test", accounts, new Map([["w1", 0]])), []);
+  });
+
   it("fails before syncing when an Actual account isn't open", async () => {
     const api = fakeApi({ accounts: [{ id: "A" }, { id: "B", closed: true }] });
     await assert.rejects(

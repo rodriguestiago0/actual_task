@@ -123,6 +123,7 @@ export function loadConfig(env = process.env) {
       accessToken: env.GHOSTFOLIO_ACCESS_TOKEN || null,
       token: env.GHOSTFOLIO_ACCESS_TOKEN ? null : env.GHOSTFOLIO_TOKEN,
       accounts: collectAccountMapping(env, "GHOSTFOLIO"),
+      allowZeroBalance: stringToBoolean(env.GHOSTFOLIO_ALLOW_ZERO_BALANCE),
     };
   }
 
@@ -131,6 +132,7 @@ export function loadConfig(env = process.env) {
     config.wealthfolio = {
       serverURL: env.WEALTHFOLIO_SERVER_URL,
       accounts: collectAccountMapping(env, "WEALTHFOLIO"),
+      allowZeroBalance: stringToBoolean(env.WEALTHFOLIO_ALLOW_ZERO_BALANCE),
     };
   }
 

@@ -50,7 +50,9 @@ export const tasks = {
     run: async (config) => {
       const balances = await fetchGhostfolioBalances(config.ghostfolio);
       const warnings = await withBudget(config.actual, (api) =>
-        syncBalances(api, "Ghostfolio", config.ghostfolio.accounts, balances),
+        syncBalances(api, "Ghostfolio", config.ghostfolio.accounts, balances, {
+          allowZero: config.ghostfolio.allowZeroBalance,
+        }),
       );
       return summarize(warnings, "accounts");
     },
@@ -60,7 +62,9 @@ export const tasks = {
     run: async (config) => {
       const balances = await fetchWealthfolioBalances(config.wealthfolio);
       const warnings = await withBudget(config.actual, (api) =>
-        syncBalances(api, "Wealthfolio", config.wealthfolio.accounts, balances),
+        syncBalances(api, "Wealthfolio", config.wealthfolio.accounts, balances, {
+          allowZero: config.wealthfolio.allowZeroBalance,
+        }),
       );
       return summarize(warnings, "accounts");
     },
