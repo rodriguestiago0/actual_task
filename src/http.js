@@ -10,9 +10,11 @@ export async function requestJson(url, { method = "GET", headers = {}, body } = 
 
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       `${method} ${new URL(url).pathname} failed: ${response.status} ${text.slice(0, 200)}`,
     );
+    error.status = response.status;
+    throw error;
   }
   return text ? JSON.parse(text) : null;
 }

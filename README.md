@@ -138,6 +138,9 @@ stops at the first set with a missing variable.
 
 Ghostfolio balances are in the Ghostfolio account's own currency (its `value`, not
 `valueInBaseCurrency`), not your base currency. Map each one to an Actual account in that currency.
+Turn off **Restricted view** in Ghostfolio for this user: it hides the values, and accounts without
+a balance are skipped with a warning. Accounts are read from `GET /api/v1/accounts`, or from
+`/api/v1/account` on Ghostfolio before 3.94.0.
 
 Wealthfolio is called without authentication. Before reading balances, the task asks Wealthfolio to
 refresh valuations (`POST /api/v1/portfolio/update`).
@@ -174,7 +177,7 @@ zone (`TZ`).
 
 When a task run by the scheduler fails, you get a message, and another one the next time it
 succeeds. You also get merge-rules' conflicts and Ghostfolio/Wealthfolio accounts that weren't
-found, once until they change; when there are too many for one message, the rest are counted and
+found or had no balance, once until they change; when there are too many for one message, the rest are counted and
 left in the logs. Runs started from the command line don't
 send notifications.
 
