@@ -73,6 +73,22 @@ describe("calculateMortgage", () => {
     assert.equal(callsTo(api, "importTransactions").length, 1);
   });
 
+  it("warns instead of recording a principal that can't be part of the payment", async () => {
+    for (const [amount, rate] of [
+      [80_000, 5399], // a refund from the mortgage payee
+      [-80_000, 5_399_000], // the rate 1000 times too high
+    ]) {
+      const api = fakeApi({
+        accounts,
+        transactions: { main: [{ payee: "bank", amount, date: today }] },
+        balances: { loan: -12_000_000 },
+      });
+      const warning = await calculateMortgage(api, { ...mortgage, interestRate: rate });
+      assert.match(warning, /^Not recording a principal of .* check INTEREST_RATE/);
+      assert.equal(callsTo(api, "importTransactions").length, 0);
+    }
+  });
+
   it("does nothing without a recent payment", async () => {
     const api = fakeApi({ accounts });
     await calculateMortgage(api, mortgage);
@@ -114,6 +130,15 @@ describe("findDuplicatePayees", () => {
     ]);
     assert.deepEqual(duplicates, [{ name: "Cafe", ids: ["1", "2"] }]);
   });
+
+  it("ignores case, as Actual does when it matches payee names", () => {
+    const duplicates = findDuplicatePayees([
+      { id: "1", name: "Cafe" },
+      { id: "2", name: "CAFE" },
+      { id: "3", name: "cafe" },
+    ]);
+    assert.deepEqual(duplicates, [{ name: "Cafe", ids: ["1", "2", "3"] }]);
+  });
 });
 
 describe("fixPayees", () => {
@@ -139,6 +164,12 @@ describe("fixPayees", () => {
     api.updatePayee = async () => {};
     await fixPayees(api, { regex: "Compra [0-9]{4}" });
     assert.deepEqual(callsTo(api, "mergePayees"), [["mergePayees", "1", ["2"]]]);
+  });
+
+  it("doesn't rename transfer payees, which keep their account's name", async () => {
+    const api = fakeApi({ payees: [{ id: "1", name: "Visa 1234", transfer_acct: "visa" }] });
+    await fixPayees(api, { regex: " [0-9]{4}" });
+    assert.equal(callsTo(api, "updatePayee").length, 0);
   });
 
   it("matches payee names case-insensitively", async () => {
@@ -508,6 +539,24 @@ describe("syncBalances", () => {
     const warnings = await syncBalances(api, "Test", accounts, new Map([["w1", null]]));
     assert.deepEqual(warnings, ["Test returned no balance for account w1"]);
     assert.equal(callsTo(api, "importTransactions").length, 0);
+  });
+
+  it("skips an account whose balance dropped to exactly 0, unless allowed", async () => {
+    const api = fakeApi({ accounts: open, balances: { A: 12_345 } });
+    const warnings = await syncBalances(api, "Test", accounts, new Map([["w1", 0]]));
+    assert.deepEqual(warnings, [
+      "Test account w1 has a balance of 0, not syncing it (123.45 in Actual). " +
+        "Set TEST_ALLOW_ZERO_BALANCE=true if it really is empty",
+    ]);
+    assert.equal(callsTo(api, "importTransactions").length, 0);
+
+    await syncBalances(api, "Test", accounts, new Map([["w1", 0]]), { allowZero: true });
+    assert.equal(callsTo(api, "importTransactions")[0][2][0].amount, -12_345);
+  });
+
+  it("syncs a balance of 0 when the Actual account is already empty", async () => {
+    const api = fakeApi({ accounts: open, balances: { A: 0 } });
+    assert.deepEqual(await syncBalances(api, "Test", accounts, new Map([["w1", 0]])), []);
   });
 
   it("fails before syncing when an Actual account isn't open", async () => {

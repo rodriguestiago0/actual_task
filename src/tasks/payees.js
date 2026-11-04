@@ -6,22 +6,27 @@ export function cleanPayeeName(name, regex) {
   return cleaned !== name ? cleaned : null;
 }
 
-/** Groups non-transfer payees by name, returning only names with duplicates. */
+/**
+ * Groups non-transfer payees by name, ignoring case as Actual does when it matches payee names,
+ * returning only names with duplicates. Each group is named after its first payee.
+ */
 export function findDuplicatePayees(payees) {
   const byName = Map.groupBy(
     payees.filter((payee) => payee.transfer_acct == null),
-    (payee) => payee.name,
+    (payee) => payee.name.toLowerCase(),
   );
   return [...byName]
     .filter(([, group]) => group.length > 1)
-    .map(([name, group]) => ({ name, ids: group.map((payee) => payee.id) }));
+    .map(([, group]) => ({ name: group[0].name, ids: group.map((payee) => payee.id) }));
 }
 
 export async function fixPayees(api, { regex }) {
   // Duplicates are found from the new names, so a dry run (where renames are skipped) lists them too.
   const payees = [];
   for (const payee of await api.getPayees()) {
-    const name = cleanPayeeName(payee.name, regex);
+    // A transfer payee is named after its account, which a rename doesn't change: it would be
+    // renamed again on every run.
+    const name = payee.transfer_acct == null ? cleanPayeeName(payee.name, regex) : null;
     if (name) {
       log.info(`Rename payee "${payee.name}" to "${name}"`);
       await api.updatePayee(payee.id, { name });

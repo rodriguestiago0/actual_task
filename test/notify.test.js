@@ -102,6 +102,56 @@ describe("notify", () => {
     assert.equal(defaultHttps.url, "https://hooks.local/in");
   });
 
+  it("sends headers, extra fields and credentials to a generic webhook as Shoutrrr does", async (t) => {
+    const fetch = mockFetch(t);
+    await notify(
+      parseNotificationUrls(
+        "generic+https://u:p%40ss@hooks.local/in?@Authorization=Bearer%20x&$source=actual" +
+          "&TitleKey=subject&messagekey=body&RequestMethod=put&DisableTLS=no&key=AbC",
+      ),
+      "❌ title\ndetails",
+    );
+    const [[target, options]] = fetch.mock.calls.map((call) => call.arguments);
+    assert.equal(String(target), "https://hooks.local/in?key=AbC");
+    assert.equal(options.method, "PUT");
+    assert.equal(options.headers.Authorization, "Bearer x");
+    assert.deepEqual(JSON.parse(options.body), {
+      source: "actual",
+      subject: "❌ title",
+      body: "details",
+    });
+
+    const [basic] = await send(t, "generic+https://u:p%40ss@hooks.local/in");
+    assert.equal(basic.headers.Authorization, `Basic ${Buffer.from("u:p@ss").toString("base64")}`);
+  });
+
+  it("reads query parameters ignoring case", async (t) => {
+    const [telegram] = await send(t, "telegram://1:token@telegram?Chats=42");
+    assert.equal(telegram.body.chat_id, "42");
+    const [gotify] = await send(t, "gotify://g.local/token?DisableTLS=Yes");
+    assert.equal(gotify.url, "http://g.local/message");
+  });
+
+  it("accepts Shoutrrr's fromaddress and toaddresses for SMTP", async (t) => {
+    const sent = [];
+    const createTransport = mock.method(nodemailer, "createTransport", () => ({
+      sendMail: async (mail) => sent.push(mail),
+    }));
+    t.after(() => createTransport.mock.restore());
+    await notify(
+      parseNotificationUrls(
+        "smtp://u:p@mail.x.com:587/?FromAddress=me@x.com&ToAddresses=a@x.com,b@x.com",
+      ),
+      "title",
+    );
+    assert.equal(sent[0].from, "me@x.com");
+    assert.deepEqual(sent[0].to, ["a@x.com", "b@x.com"]);
+    assert.throws(
+      () => parseNotificationUrls("smtp://mail.x.com/?fromaddress=me@x.com"),
+      /expected smtp:\/\/USER:PASSWORD@HOST:PORT\/\?fromaddress=ADDRESS&toaddresses=ADDRESS/,
+    );
+  });
+
   it("emails through SMTP", async (t) => {
     const sent = [];
     const createTransport = mock.method(nodemailer, "createTransport", (options) => ({

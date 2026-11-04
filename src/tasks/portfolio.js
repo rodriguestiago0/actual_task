@@ -28,6 +28,7 @@ export async function fetchGhostfolioBalances(ghostfolio) {
     if (err.status !== 404) throw err;
     return get("/api/v1/account");
   });
+  if (!Array.isArray(json?.accounts)) throw new Error("Ghostfolio returned no account list");
   if (json.accounts.some((account) => account.value == null)) {
     log.warn("Ghostfolio hid account values; turn off Restricted view for the synced user");
   }
@@ -40,14 +41,23 @@ export async function fetchWealthfolioBalances({ serverURL }) {
     log.warn("Wealthfolio portfolio update failed:", err.message),
   );
   const valuations = await requestJson(`${serverURL}/api/v1/valuations/latest`);
+  if (!Array.isArray(valuations)) throw new Error("Wealthfolio returned no valuation list");
   return new Map(valuations.map((valuation) => [valuation.accountId, valuation.totalValue]));
 }
 
 /**
  * Makes each Actual account match its remote balance by adding one adjustment transaction for the
- * difference on every sync that finds one. Returns a warning for each remote account not found.
+ * difference on every sync that finds one. Returns a warning for each remote account not found or
+ * without a balance, and for each one skipped because its balance dropped to exactly 0: Ghostfolio
+ * reports 0 for an account it has no valuation for. allowZero syncs those too.
  */
-export async function syncBalances(api, name, accounts, remoteBalances) {
+export async function syncBalances(
+  api,
+  name,
+  accounts,
+  remoteBalances,
+  { allowZero = false } = {},
+) {
   await requireOpenAccounts(
     api,
     name,
@@ -72,7 +82,18 @@ export async function syncBalances(api, name, accounts, remoteBalances) {
       continue;
     }
     const remoteBalance = Math.round(balance * 100);
-    const difference = remoteBalance - (await api.getAccountBalance(actualAccount));
+    const actualBalance = await api.getAccountBalance(actualAccount);
+    const difference = remoteBalance - actualBalance;
+
+    if (remoteBalance === 0 && actualBalance !== 0 && !allowZero) {
+      const warning =
+        `${name} account ${remoteAccount} has a balance of 0, not syncing it ` +
+        `(${actualBalance / 100} in Actual). Set ${name.toUpperCase()}_ALLOW_ZERO_BALANCE=true ` +
+        "if it really is empty";
+      log.warn(warning);
+      warnings.push(warning);
+      continue;
+    }
 
     if (difference === 0) {
       log.info(`No difference for ${payeeName} (${remoteBalance / 100})`);

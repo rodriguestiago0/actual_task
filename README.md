@@ -15,11 +15,20 @@ sync. Run them once from the command line or on a schedule, either with Node.js 
 3. Enable the tasks you want (see [Tasks](#tasks)) and fill in their variables.
 4. Run one task: `node index.js fix-payees`. Run every enabled task on a schedule: `npm start`.
 
+Any variable can instead be read from a file by adding `_FILE` to its name, e.g.
+`ACTUAL_SERVER_PASSWORD_FILE=/run/secrets/actual_password` (Docker or Compose secrets), so
+passwords, tokens and `NOTIFICATION_URL` don't have to be in the environment. A trailing newline
+is ignored. Setting both `NAME` and `NAME_FILE` is an error.
+
 A task only runs when its `ENABLE_*` variable is `true`, including when you run it by hand.
 `node index.js -h` lists the commands.
 
-Each run downloads a fresh copy of the budget into `ACTUAL_DATA_DIR` (default
-`./temp_data_actual`), removing the previous copy first.
+Each run downloads a fresh copy of the budget into a new `run-*` directory in `ACTUAL_DATA_DIR`
+(default `./temp_data_actual`). The budget's database is deleted when the run ends (for an
+end-to-end encrypted budget it's the decrypted copy), and the directory itself by a later run or
+when the process exits. A lock file in that directory keeps runs apart even across processes: a
+`node index.js` run started while the scheduler runs a task (e.g. with `docker exec`) waits for it
+to finish, for up to 15 minutes, and the other way round.
 
 Add `--dry-run` (`-n`) to run a task without saving anything, e.g.
 `node index.js merge-rules --dry-run`. The task reads the budget and logs what it would do as usual;
@@ -30,18 +39,24 @@ A dry run still opens the budget the way the app does, so Actual's schedule serv
 schedules set to "automatically add" are posted and synced, and finished one-off schedules are
 marked completed, as opening the app would. The API offers no way to stop this.
 
+Changes reach the server while the task runs (Actual pushes each one about a second after it's
+made), so a task that fails halfway keeps the changes it made before the error.
+
 > **Back up your budget first.** Renaming and merging payees, and merging rules, can't be undone.
 
 ## Tasks
 
 | Command              | Enabled by                    |
 | -------------------- | ----------------------------- |
+| `bank-sync`          | `ENABLE_BANK_SYNC`            |
+| `calculate-mortgage` | `ENABLE_INTEREST_CALCULATION` |
 | `fix-payees`         | `ENABLE_PAYEE_RENAME`         |
 | `merge-rules`        | `ENABLE_RULE_MERGE`           |
-| `calculate-mortgage` | `ENABLE_INTEREST_CALCULATION` |
 | `ghostfolio-sync`    | `ENABLE_GHOSTFOLIO_SYNC`      |
 | `wealthfolio-sync`   | `ENABLE_WEALTHFOLIO_SYNC`     |
-| `bank-sync`          | `ENABLE_BANK_SYNC`            |
+
+Tasks on the same schedule run in this order, so bank sync imports new transactions before the
+mortgage, payee and rule tasks look at them.
 
 Account IDs are in the app's URL when you open an account (`/accounts/<ID>`). A task fails before
 changing anything when one of its account IDs isn't an open account in the budget. Actual doesn't
@@ -50,15 +65,17 @@ show payee IDs in the app; get them from the API (`getPayees()`).
 ### Fix payees
 
 Removes every match of the regex `PAYEE_REGEX_MATCH` from payee names, collapses repeated spaces
-and trims the result. The match ignores case (flags `gis`).
+and trims the result. The match ignores case (flags `gis`). An invalid regex stops the program at
+startup.
 
 | Regex                                                        | Before                                     | After              |
 | ------------------------------------------------------------ | ------------------------------------------ | ------------------ |
 | `Compra [0-9]{4}\|Contactless\|Compra:\|[0-9]{4}-[0-9]{0,3}` | `Compra 1234 Continente Porto Contactless` | `Continente Porto` |
 | (any)                                                        | `Continente       Porto`                   | `Continente Porto` |
 
-The task then **merges every pair of payees with exactly the same name**, not only the ones it
-renamed. Transfer payees are never merged.
+The task then **merges every pair of payees with the same name**, ignoring case as Actual does
+(`Cafe` and `CAFE`), not only the ones it renamed. Transfer payees, which are named after their
+account, are never renamed or merged.
 
 ### Merge rules
 
@@ -71,7 +88,9 @@ category:
 | `imported payee is Compra Zara Porto → payee Zara`<br>`imported payee contains ZARA → payee Zara` | `imported payee is Compra Zara Porto or contains ZARA → payee Zara` |
 
 Rules are merged when they are in the same stage, compare a single field with "is", "is one of" or
-"contains", and have exactly the same actions. Rules whose conditions must all match are merged too
+"contains", and have exactly the same actions. Only fields Actual allows "is one of" on are merged
+this way: payee, imported payee, account, category and category group. Rules on other fields
+(amount, date, notes, ...) are only deleted when they are exact duplicates. Rules whose conditions must all match are merged too
 when they have the same actions and differ only in one "is"/"is one of" condition (payee first,
 then imported payee, account, category), e.g. `payee is Ana and amount < 0 → Loan` and `payee is
 Rui and amount < 0 → Loan` become `payee is one of Ana, Rui and amount < 0 → Loan`. The merged rule keeps one of the rules' IDs; the
@@ -116,7 +135,12 @@ On each run the task:
 2. Skips if the mortgage account already has a transaction from that payee dated on or after
    the payment.
 3. Computes interest as `mortgage balance × rate / 12` and records `payment amount − interest` as a
-   positive transaction dated today.
+   positive transaction dated today. When that isn't part of the payment (more than the payment,
+   or not positive, e.g. a refund or a wrong `INTEREST_RATE`), it records nothing and warns
+   instead.
+
+`INTEREST_RATE` must be a whole number between 1 and 99999; a percentage such as `5.399` is
+rejected at startup.
 
 `MORTGAGE_PAYEE_NAME` must be the name of `MORTGAGE_PAYEE_ID`. Otherwise step 2 never finds the
 earlier transaction and the principal is recorded on every run.
@@ -138,13 +162,18 @@ difference adds an adjustment transaction for it, so the schedule sets how often
 
 To sync more accounts, add the same three account variables with a `_1`, `_2`, ... suffix (e.g.
 `GHOSTFOLIO_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_PAYEE_NAME_1`). Numbering
-stops at the first set with a missing variable.
+stops at the first set with a missing variable; the variables it ignores are logged at startup.
 
 Ghostfolio balances are in the Ghostfolio account's own currency (its `value`, not
 `valueInBaseCurrency`), not your base currency. Map each one to an Actual account in that currency.
 Turn off **Restricted view** in Ghostfolio for this user: it hides the values, and accounts without
 a balance are skipped with a warning. Accounts are read from `GET /api/v1/accounts`, or from
 `/api/v1/account` on Ghostfolio before 3.94.0.
+
+An account whose balance drops to exactly 0 while the Actual account isn't empty is skipped with a
+warning, because Ghostfolio reports 0 for an account it has no valuation for. Set
+`GHOSTFOLIO_ALLOW_ZERO_BALANCE=true` (or `WEALTHFOLIO_ALLOW_ZERO_BALANCE=true`) to sync it anyway,
+e.g. after selling everything in it.
 
 Wealthfolio is called without authentication. Before reading balances, the task asks Wealthfolio to
 refresh valuations (`POST /api/v1/portfolio/update`).
@@ -161,45 +190,61 @@ with a 401 error. Replace it with `GHOSTFOLIO_ACCESS_TOKEN`.
 ### Bank sync
 
 Runs Actual's bank sync for all linked accounts (GoCardless, SimpleFIN, ...), as if you clicked
-**Bank Sync** in the app. Accounts must already be linked in Actual.
+**Bank Sync** in the app. Accounts must already be linked in Actual. It logs how many transactions
+it added and matched; when several accounts fail, Actual reports only the first error.
 
 ## Scheduling
 
 `npm start` runs all enabled tasks on `CRON_EXPRESSION`, which defaults to `0 */4 * * *` (every 4
-hours, standard 5-field cron syntax). To give one task its own schedule, set a variable named after
+hours, standard 5-field cron syntax; a 6th leading field sets seconds, so `* * * * * *` runs every
+second). To give one task its own schedule, set a variable named after
 its command in upper case with `_CRON` appended:
 
 `CALCULATE_MORTGAGE_CRON`, `FIX_PAYEES_CRON`, `MERGE_RULES_CRON`, `GHOSTFOLIO_SYNC_CRON`, `WEALTHFOLIO_SYNC_CRON`,
 `BANK_SYNC_CRON`
 
-Names that match no task are logged as a warning and ignored. Tasks never run at the same time. Set `RUN_ON_START=true` to
-also run every enabled task once at startup. On `SIGTERM`/`SIGINT`, a running task finishes
-before the process exits. Schedules and transaction dates use the local time
+`npm start` exits with status 1 when the configuration is invalid or no task is enabled, after
+sending the error as a notification when `NOTIFICATION_URL` is valid (once until the error changes,
+so a container restarting on it doesn't notify on every restart). Names that match no task are logged as a warning and ignored. Tasks never run at the same time, including runs started by hand (see the lock above). Set `RUN_ON_START=true` to
+also run every enabled task once at startup. On `SIGTERM`/`SIGINT`, the running task finishes
+before the process exits, and the tasks left in its batch are skipped. Schedules and transaction dates use the local time
 zone (`TZ`).
+
+When Actual's server can't be reached while opening the budget, the run retries twice, after 10
+and 30 seconds. A task still running after `TASK_TIMEOUT_MINUTES` (default 30, `0` turns it off)
+is logged and notified; it isn't stopped, as the Actual API holds one budget for the whole process,
+so the next tasks wait for it.
 
 ## Notifications
 
-When a task run by the scheduler fails, you get a message, and another one the next time it
-succeeds. You also get merge-rules' conflicts and Ghostfolio/Wealthfolio accounts that weren't
-found or had no balance, once until they change; when there are too many for one message, the rest are counted and
+When a task run by the scheduler fails, you get a message (again only when the error changes), and
+another one the next time it succeeds. You also get merge-rules' conflicts and Ghostfolio/Wealthfolio accounts that weren't
+found, had no balance or dropped to 0, once until they change; when there are too many for one message, the rest are counted and
 left in the logs. Runs started from the command line don't
 send notifications.
 
 Set `NOTIFICATION_URL` to one or more space-separated URLs. They use the same format as
-[Watchtower](https://containrrr.dev/watchtower/notifications/) (Shoutrrr), so you can reuse existing
-Watchtower URLs:
+[Watchtower](https://containrrr.dev/watchtower/notifications/) (Shoutrrr), so you can usually reuse
+existing Watchtower URLs for the services below; Shoutrrr options not mentioned here are ignored:
 
-| Service  | URL                                                                           |
-| -------- | ----------------------------------------------------------------------------- |
-| Telegram | `telegram://BOT_TOKEN@telegram?chats=CHAT_ID[,CHAT_ID]`                       |
-| Discord  | `discord://TOKEN@WEBHOOK_ID`                                                  |
-| Slack    | `slack://hook:T-B-X@webhook` (from `https://hooks.slack.com/services/T/B/X`)  |
-| Email    | `smtp://USER:PASSWORD@HOST:PORT/?from=ADDRESS&to=ADDRESS[,ADDRESS]`           |
-| ntfy     | `ntfy://[USER:PASSWORD@]HOST/TOPIC`                                           |
-| Gotify   | `gotify://HOST/APP_TOKEN`                                                     |
-| Webhook  | `generic+https://HOST/PATH` (POSTs JSON `{"title": "...", "message": "..."}`) |
+| Service  | URL                                                                                           |
+| -------- | --------------------------------------------------------------------------------------------- |
+| Telegram | `telegram://BOT_TOKEN@telegram?chats=CHAT_ID[,CHAT_ID]`                                       |
+| Discord  | `discord://TOKEN@WEBHOOK_ID`                                                                  |
+| Slack    | `slack://hook:T-B-X@webhook` (from `https://hooks.slack.com/services/T/B/X`)                  |
+| Email    | `smtp://USER:PASSWORD@HOST:PORT/?fromaddress=ADDRESS&toaddresses=ADDRESS[,ADDRESS]`           |
+| ntfy     | `ntfy://[USER:PASSWORD@]HOST/TOPIC`                                                           |
+| Gotify   | `gotify://HOST/APP_TOKEN`                                                                     |
+| Webhook  | `generic+https://[USER:PASSWORD@]HOST/PATH` (POSTs JSON `{"title": "...", "message": "..."}`) |
 
-Telegram also accepts `channels=` instead of `chats=`, as older Watchtower URLs use it.
+Query parameter names ignore case, as in Shoutrrr. Telegram also accepts `channels=` instead of
+`chats=`, as older Watchtower URLs use it, and email also accepts the shorter `from=` and `to=`.
+
+The webhook follows Shoutrrr's generic service: `@Name=value` parameters are sent as headers (e.g.
+`@Authorization=Bearer%20TOKEN`), `$name=value` ones as extra JSON fields, credentials in the URL
+as Basic auth, and `titlekey=`, `messagekey=` and `requestmethod=` rename the fields or change the
+method. Other parameters stay on the target URL. Unlike Shoutrrr, it always sends JSON, with or
+without `template=json`.
 
 URL-encode special characters in credentials (e.g. `@` → `%40`). Email follows Shoutrrr's
 `encryption=` values: `Auto` (default) uses implicit TLS on port 465 and STARTTLS on other ports,
@@ -211,6 +256,9 @@ plain-HTTP servers, add `?scheme=http` (ntfy) or `?disabletls=yes` (Gotify).
 ## Logs
 
 Output is timestamped. The Actual API's own verbose logging is hidden unless `DEBUG=1`.
+
+Boolean variables (`ENABLE_*`, `RUN_ON_START`, ...) accept `true`/`yes`/`1` and `false`/`no`/`0`
+in any case; anything else stops the program at startup.
 
 ## Development
 

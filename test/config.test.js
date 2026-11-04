@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { collectAccountMapping, loadConfig, stringToBoolean } from "../src/config.js";
+import { log } from "../src/log.js";
 
 const base = {
   ACTUAL_SERVER_URL: "https://actual.example",
@@ -42,6 +46,27 @@ describe("collectAccountMapping", () => {
     ]);
   });
 
+  it("warns about numbered variables after the first incomplete set", (t) => {
+    const warn = mock.method(log, "warn", () => {});
+    t.after(() => warn.mock.restore());
+    const mapping = collectAccountMapping(
+      {
+        X_ACCOUNT: "a",
+        X_ACTUAL_ACCOUNT: "A",
+        X_ACTUAL_PAYEE_NAME: "Pa",
+        X_ACCOUNT_2: "c",
+        X_ACTUAL_ACCOUNT_2: "C",
+        X_ACTUAL_PAYEE_NAME_2: "Pc",
+      },
+      "X",
+    );
+    assert.equal(mapping.length, 1);
+    assert.deepEqual(warn.mock.calls[0].arguments, [
+      "Ignoring X_ACCOUNT_2, X_ACTUAL_ACCOUNT_2, X_ACTUAL_PAYEE_NAME_2: " +
+        "X_ACCOUNT_1, X_ACTUAL_ACCOUNT_1, X_ACTUAL_PAYEE_NAME_1 must all be set first",
+    ]);
+  });
+
   it("requires the base triple", () => {
     assert.throws(
       () => collectAccountMapping({ X_ACCOUNT: "a", X_ACTUAL_ACCOUNT: "A" }, "X"),
@@ -74,8 +99,25 @@ describe("loadConfig", () => {
       INTEREST_RATE: "5399",
     };
     assert.equal(loadConfig(env).mortgage.interestRate, 5399);
-    assert.throws(() => loadConfig({ ...env, INTEREST_RATE: "abc" }), /must be a number/);
+    for (const rate of ["abc", "5.399", "0", "-5399", "100000"]) {
+      assert.throws(
+        () => loadConfig({ ...env, INTEREST_RATE: rate }),
+        /INTEREST_RATE must be the annual rate in % multiplied by 1000 \(5\.399% is 5399\)/,
+      );
+    }
     assert.throws(() => loadConfig({ ...env, MAIN_ACCOUNT_ID: "" }), /MAIN_ACCOUNT_ID/);
+  });
+
+  it("rejects an invalid PAYEE_REGEX_MATCH at startup", () => {
+    const env = { ...base, ENABLE_PAYEE_RENAME: "true" };
+    assert.equal(
+      loadConfig({ ...env, PAYEE_REGEX_MATCH: "Compra [0-9]{4}" }).payeeRename.regex,
+      "Compra [0-9]{4}",
+    );
+    assert.throws(
+      () => loadConfig({ ...env, PAYEE_REGEX_MATCH: "Compra [0-9" }),
+      /PAYEE_REGEX_MATCH is not a valid regex/,
+    );
   });
 
   it("configures rule merging", () => {
@@ -123,6 +165,12 @@ describe("loadConfig scheduling and notifications", () => {
     assert.equal(config.runOnStart, true);
   });
 
+  it("reads TASK_TIMEOUT_MINUTES, 30 by default", () => {
+    assert.equal(loadConfig(base).taskTimeoutMinutes, 30);
+    assert.equal(loadConfig({ ...base, TASK_TIMEOUT_MINUTES: "0" }).taskTimeoutMinutes, 0);
+    assert.throws(() => loadConfig({ ...base, TASK_TIMEOUT_MINUTES: "1.5" }), /whole number/);
+  });
+
   it("parses NOTIFICATION_URL", () => {
     assert.deepEqual(loadConfig(base).notifications, []);
     const config = loadConfig({ ...base, NOTIFICATION_URL: "ntfy://ntfy.sh/a discord://t@1" });
@@ -131,5 +179,25 @@ describe("loadConfig scheduling and notifications", () => {
       ["ntfy", "discord"],
     );
     assert.throws(() => loadConfig({ ...base, NOTIFICATION_URL: "x://y" }), /unsupported/);
+  });
+});
+
+describe("NAME_FILE secrets", () => {
+  it("reads a variable from the file NAME_FILE points to", (t) => {
+    const dir = mkdtempSync(join(tmpdir(), "actual-tasks-secrets-"));
+    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    const file = join(dir, "password");
+    writeFileSync(file, "s3cret\n");
+    const env = { ...base, ACTUAL_SERVER_PASSWORD: undefined, ACTUAL_SERVER_PASSWORD_FILE: file };
+    assert.equal(loadConfig(env).actual.password, "s3cret");
+
+    assert.throws(
+      () => loadConfig({ ...base, ACTUAL_SERVER_PASSWORD_FILE: file }),
+      /Set ACTUAL_SERVER_PASSWORD or ACTUAL_SERVER_PASSWORD_FILE, not both/,
+    );
+    assert.throws(
+      () => loadConfig({ ...env, ACTUAL_SERVER_PASSWORD_FILE: join(dir, "missing") }),
+      /ACTUAL_SERVER_PASSWORD_FILE: can't read .*missing \(ENOENT\)/,
+    );
   });
 });

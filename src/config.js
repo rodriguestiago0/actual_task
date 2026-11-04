@@ -1,23 +1,13 @@
-import { parseNotificationUrls } from "./notify.js";
+import { readFileSync } from "node:fs";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { stringToBoolean } from "./bool.js";
+import { log } from "./log.js";
+import { notify, parseNotificationUrls } from "./notify.js";
+
+export { stringToBoolean };
 
 const DEFAULT_CRON_EXPRESSION = "0 */4 * * *";
-
-export function stringToBoolean(value) {
-  switch (value?.toLowerCase().trim()) {
-    case "true":
-    case "yes":
-    case "1":
-      return true;
-    case "false":
-    case "no":
-    case "0":
-    case "":
-    case undefined:
-      return false;
-    default:
-      throw new Error(`Invalid boolean value: "${value}"`);
-  }
-}
 
 function requireEnv(env, names) {
   const missing = names.filter((name) => !env[name]);
@@ -45,15 +35,81 @@ export function collectAccountMapping(env, prefix) {
   requireEnv(env, keys(""));
   const mapping = [entry(keys(""))];
 
-  for (let i = 1; ; i++) {
+  let i = 1;
+  for (; ; i++) {
     const numbered = keys(`_${i}`);
     if (numbered.some((key) => !env[key])) break;
     mapping.push(entry(numbered));
   }
+  // Numbering stops at the first incomplete set, so anything numbered after it is ignored.
+  const numbered = new RegExp(`^${prefix}_(?:ACCOUNT|ACTUAL_ACCOUNT|ACTUAL_PAYEE_NAME)_(\\d+)$`);
+  const ignored = Object.keys(env)
+    .filter((key) => env[key] && Number(numbered.exec(key)?.[1]) >= i)
+    .sort();
+  if (ignored.length > 0) {
+    log.warn(`Ignoring ${ignored.join(", ")}: ${keys(`_${i}`).join(", ")} must all be set first`);
+  }
   return mapping;
 }
 
+/**
+ * The environment with each NAME_FILE variable replaced by NAME, read from that file (Docker and
+ * Compose secrets), so secrets don't have to be in the container's environment.
+ */
+export function withFileSecrets(env) {
+  const resolved = { ...env };
+  for (const [key, path] of Object.entries(env)) {
+    if (!key.endsWith("_FILE") || !path) continue;
+    const name = key.slice(0, -"_FILE".length);
+    if (env[name]) throw new Error(`Set ${name} or ${key}, not both`);
+    try {
+      resolved[name] = readFileSync(path, "utf8").replace(/\r?\n$/, "");
+    } catch (err) {
+      throw new Error(`${key}: can't read ${path} (${err.code ?? err.message})`, { cause: err });
+    }
+  }
+  return resolved;
+}
+
+const dataDirOf = (env) => env.ACTUAL_DATA_DIR || "./temp_data_actual";
+// The last configuration error notified, so a container restarting on it notifies once.
+const configErrorFile = (env) => join(dataDirOf(env), "config-error");
+
+/**
+ * Logs a configuration error and notifies it through NOTIFICATION_URL when that is valid, once
+ * until the error changes.
+ */
+export async function reportConfigError(err, env = process.env) {
+  log.error(`Invalid configuration: ${err.message}`);
+  let channels;
+  try {
+    channels = parseNotificationUrls(withFileSecrets(env).NOTIFICATION_URL);
+  } catch {
+    return;
+  }
+  const file = configErrorFile(env);
+  if ((await readFile(file, "utf8").catch(() => null)) === err.message) return;
+  await notify(channels, `❌ actual-tasks: invalid configuration\n${err.message}`);
+  await mkdir(dataDirOf(env), { recursive: true })
+    .then(() => writeFile(file, err.message))
+    .catch(() => {});
+}
+
+/** Forgets the last configuration error, once the configuration is valid again. */
+export const clearConfigError = (env = process.env) => rm(configErrorFile(env), { force: true });
+
+/** A whole number of minutes, 0 to turn it off. */
+function minutes(env, name, fallback) {
+  if (!env[name]) return fallback;
+  const value = Number(env[name]);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a whole number of minutes, got "${env[name]}"`);
+  }
+  return value;
+}
+
 export function loadConfig(env = process.env) {
+  env = withFileSecrets(env);
   requireEnv(env, ["ACTUAL_SERVER_URL", "ACTUAL_SERVER_PASSWORD", "ACTUAL_SYNC_ID"]);
 
   const config = {
@@ -62,7 +118,7 @@ export function loadConfig(env = process.env) {
       password: env.ACTUAL_SERVER_PASSWORD,
       filePassword: env.ACTUAL_FILE_PASSWORD || "",
       syncId: env.ACTUAL_SYNC_ID,
-      dataDir: env.ACTUAL_DATA_DIR || "./temp_data_actual",
+      dataDir: dataDirOf(env),
     },
     cronExpression: env.CRON_EXPRESSION || DEFAULT_CRON_EXPRESSION,
     // Per-task schedules, e.g. FIX_PAYEES_CRON -> { "fix-payees": "..." }.
@@ -75,6 +131,7 @@ export function loadConfig(env = process.env) {
         ]),
     ),
     runOnStart: stringToBoolean(env.RUN_ON_START),
+    taskTimeoutMinutes: minutes(env, "TASK_TIMEOUT_MINUTES", 30),
     notifications: parseNotificationUrls(env.NOTIFICATION_URL),
     mortgage: null,
     payeeRename: null,
@@ -93,8 +150,12 @@ export function loadConfig(env = process.env) {
       "INTEREST_RATE",
     ]);
     const interestRate = Number(env.INTEREST_RATE);
-    if (!Number.isFinite(interestRate)) {
-      throw new Error(`INTEREST_RATE must be a number, got "${env.INTEREST_RATE}"`);
+    // A rate written as a percentage (5.399) would be read as 0.005399%.
+    if (!Number.isInteger(interestRate) || interestRate <= 0 || interestRate >= 100_000) {
+      throw new Error(
+        "INTEREST_RATE must be the annual rate in % multiplied by 1000 (5.399% is 5399), " +
+          `got "${env.INTEREST_RATE}"`,
+      );
     }
     config.mortgage = {
       payeeId: env.MORTGAGE_PAYEE_ID,
@@ -108,6 +169,11 @@ export function loadConfig(env = process.env) {
 
   if (stringToBoolean(env.ENABLE_PAYEE_RENAME)) {
     requireEnv(env, ["PAYEE_REGEX_MATCH"]);
+    try {
+      new RegExp(env.PAYEE_REGEX_MATCH, "gis");
+    } catch (err) {
+      throw new Error(`PAYEE_REGEX_MATCH is not a valid regex: ${err.message}`, { cause: err });
+    }
     config.payeeRename = { regex: env.PAYEE_REGEX_MATCH };
   }
 
@@ -123,6 +189,7 @@ export function loadConfig(env = process.env) {
       accessToken: env.GHOSTFOLIO_ACCESS_TOKEN || null,
       token: env.GHOSTFOLIO_ACCESS_TOKEN ? null : env.GHOSTFOLIO_TOKEN,
       accounts: collectAccountMapping(env, "GHOSTFOLIO"),
+      allowZeroBalance: stringToBoolean(env.GHOSTFOLIO_ALLOW_ZERO_BALANCE),
     };
   }
 
@@ -131,6 +198,7 @@ export function loadConfig(env = process.env) {
     config.wealthfolio = {
       serverURL: env.WEALTHFOLIO_SERVER_URL,
       accounts: collectAccountMapping(env, "WEALTHFOLIO"),
+      allowZeroBalance: stringToBoolean(env.WEALTHFOLIO_ALLOW_ZERO_BALANCE),
     };
   }
 

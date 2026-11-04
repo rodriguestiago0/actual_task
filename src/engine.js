@@ -1,7 +1,8 @@
 import cron from "node-cron";
 import { withBudget } from "./actual.js";
-import { log } from "./log.js";
+import { describeError, log } from "./log.js";
 import { notify } from "./notify.js";
+import { bankSync } from "./tasks/bank.js";
 import { calculateMortgage } from "./tasks/mortgage.js";
 import { fixPayees } from "./tasks/payees.js";
 import {
@@ -13,6 +14,10 @@ import { mergeRules } from "./tasks/rules.js";
 
 // Warnings are notified in one message, which Discord limits to 2000 characters.
 const WARNING_LIMIT = 1800;
+
+/** The text cut to fit in one notification. */
+export const truncate = (text) =>
+  text.length > WARNING_LIMIT ? `${text.slice(0, WARNING_LIMIT)}… (see the logs)` : text;
 
 /** Joins as many items as fit in WARNING_LIMIT, counting the rest, or undefined without items. */
 export function summarize(items, noun) {
@@ -29,10 +34,15 @@ export function summarize(items, noun) {
 }
 
 /**
- * Tasks in the order they run when scheduled together. Each is enabled when its config is set, and
- * run may resolve to a warning for the scheduler to notify about.
+ * Tasks in the order they run when scheduled together: bank sync first, so the other tasks see the
+ * transactions it imports. Each is enabled when its config is set, and run may resolve to a
+ * warning for the scheduler to notify about.
  */
 export const tasks = {
+  "bank-sync": {
+    enabled: (config) => config.bankSync,
+    run: (config) => withBudget(config.actual, bankSync),
+  },
   "calculate-mortgage": {
     enabled: (config) => config.mortgage,
     run: (config) => withBudget(config.actual, (api) => calculateMortgage(api, config.mortgage)),
@@ -50,7 +60,9 @@ export const tasks = {
     run: async (config) => {
       const balances = await fetchGhostfolioBalances(config.ghostfolio);
       const warnings = await withBudget(config.actual, (api) =>
-        syncBalances(api, "Ghostfolio", config.ghostfolio.accounts, balances),
+        syncBalances(api, "Ghostfolio", config.ghostfolio.accounts, balances, {
+          allowZero: config.ghostfolio.allowZeroBalance,
+        }),
       );
       return summarize(warnings, "accounts");
     },
@@ -60,14 +72,12 @@ export const tasks = {
     run: async (config) => {
       const balances = await fetchWealthfolioBalances(config.wealthfolio);
       const warnings = await withBudget(config.actual, (api) =>
-        syncBalances(api, "Wealthfolio", config.wealthfolio.accounts, balances),
+        syncBalances(api, "Wealthfolio", config.wealthfolio.accounts, balances, {
+          allowZero: config.wealthfolio.allowZeroBalance,
+        }),
       );
       return summarize(warnings, "accounts");
     },
-  },
-  "bank-sync": {
-    enabled: (config) => config.bankSync,
-    run: (config) => withBudget(config.actual, (api) => api.runBankSync()),
   },
 };
 
@@ -106,20 +116,46 @@ function runExclusive(fn) {
 /** Resolves once every queued task run has finished. */
 export const idle = () => queue;
 
-// Tasks whose last run failed, so the next successful run can be reported as a recovery.
-const failing = new Set();
+let stopping = false;
+/**
+ * Lets the running task finish but starts no other task, in this batch or a queued one. Resolves
+ * once the running task has finished.
+ */
+export function stop() {
+  stopping = true;
+  return queue;
+}
+
+// Each failing task's last error, so the same failure is only notified once, and the next
+// successful run can be reported as a recovery.
+const failing = new Map();
 // Each task's last warning, so the same warning is only notified once.
 const warned = new Map();
 
 /**
- * Runs the given tasks one after another; failures, recoveries and new warnings are logged and
- * notified.
+ * Runs the given tasks one after another; failures, recoveries and warnings are logged, and
+ * notified once until they change. A task still running after config.taskTimeoutMinutes is
+ * notified too.
  */
 export function runTasks(config, names, registry = tasks) {
   return runExclusive(async () => {
     let ok = true;
     for (const name of names) {
+      if (stopping) {
+        log.info(`Stopping: not running ${name}`);
+        continue;
+      }
       log.info(`Running ${name}`);
+      // Only a warning: the task can't be abandoned while it still uses the Actual API, which
+      // holds one budget for the whole process.
+      const minutes = config.taskTimeoutMinutes;
+      const watchdog =
+        minutes > 0 &&
+        setTimeout(() => {
+          const text = `${name} is still running after ${minutes} minutes`;
+          log.error(text);
+          notify(config.notifications, `⏱️ actual-tasks: ${text}`);
+        }, minutes * 60_000);
       try {
         const warning = await registry[name].run(config);
         log.info(`Finished ${name}`);
@@ -133,9 +169,14 @@ export function runTasks(config, names, registry = tasks) {
         }
       } catch (err) {
         ok = false;
-        failing.add(name);
         log.error(`${name} failed:`, err);
-        await notify(config.notifications, `❌ actual-tasks: ${name} failed\n${err.message}`);
+        const message = truncate(describeError(err));
+        if (failing.get(name) !== message) {
+          failing.set(name, message);
+          await notify(config.notifications, `❌ actual-tasks: ${name} failed\n${message}`);
+        }
+      } finally {
+        clearTimeout(watchdog);
       }
     }
     return ok;

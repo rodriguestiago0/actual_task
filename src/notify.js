@@ -1,7 +1,9 @@
 import nodemailer from "nodemailer";
-import { log } from "./log.js";
+import { stringToBoolean } from "./bool.js";
+import { describeError, log } from "./log.js";
 
 // Notification URLs use the Shoutrrr format, so URLs written for Watchtower work here too.
+// Query parameter names ignore case, as in Shoutrrr.
 
 const TIMEOUT_MS = 10_000;
 // Shoutrrr's smtp encryption values, lowercased.
@@ -13,7 +15,13 @@ const list = (value) =>
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-const isYes = (value) => ["yes", "true", "1"].includes(value?.toLowerCase());
+
+/** The URL's query parameters by lowercased name. */
+const paramsOf = (url) =>
+  new Map([...url.searchParams].map(([key, value]) => [key.toLowerCase(), value]));
+
+const basicAuth = (url) =>
+  `Basic ${Buffer.from(`${decode(url.username)}:${decode(url.password)}`).toString("base64")}`;
 
 /** First line of the text is the title, the rest is the message. */
 function split(text) {
@@ -28,9 +36,9 @@ function lastSegment(pathname) {
   return { prefix: segments.map((segment) => `${segment}/`).join(""), last: last && decode(last) };
 }
 
-async function post(url, body, headers = {}) {
+async function post(url, body, headers = {}, method = "POST") {
   const response = await fetch(url, {
-    method: "POST",
+    method,
     headers,
     body,
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -38,14 +46,15 @@ async function post(url, body, headers = {}) {
   if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
 }
 
-const postJson = (url, data, headers = {}) =>
-  post(url, JSON.stringify(data), { "Content-Type": "application/json", ...headers });
+const postJson = (url, data, headers = {}, method = "POST") =>
+  post(url, JSON.stringify(data), { "Content-Type": "application/json", ...headers }, method);
 
 /** Each service turns a parsed URL into send(text), throwing with the expected format if invalid. */
 const services = {
   telegram(url) {
     // Shoutrrr also accepts "channels", which older Watchtower URLs use.
-    const chats = list(url.searchParams.get("chats") ?? url.searchParams.get("channels"));
+    const params = paramsOf(url);
+    const chats = list(params.get("chats") ?? params.get("channels"));
     if (!url.password || chats.length === 0)
       throw new Error("expected telegram://TOKEN@telegram?chats=CHAT_ID");
     const token = `${decode(url.username)}:${decode(url.password)}`;
@@ -77,21 +86,23 @@ const services = {
   },
 
   smtp(url) {
-    const from = url.searchParams.get("from");
-    const to = list(url.searchParams.get("to"));
+    // Shoutrrr's names, or the shorter from/to
+    const params = paramsOf(url);
+    const from = params.get("fromaddress") ?? params.get("from");
+    const to = list(params.get("toaddresses") ?? params.get("to"));
     if (!url.hostname || !from || to.length === 0) {
-      throw new Error("expected smtp://USER:PASSWORD@HOST:PORT/?from=ADDRESS&to=ADDRESS");
+      throw new Error(
+        "expected smtp://USER:PASSWORD@HOST:PORT/?fromaddress=ADDRESS&toaddresses=ADDRESS",
+      );
     }
     const port = Number(url.port || 25);
-    const encryption = url.searchParams.get("encryption")?.toLowerCase() ?? "auto";
+    const encryption = params.get("encryption")?.toLowerCase() ?? "auto";
     if (!ENCRYPTIONS.includes(encryption)) {
       throw new Error("expected encryption=Auto, ExplicitTLS, ImplicitTLS or None");
     }
     const implicit = encryption === "implicittls" || (encryption === "auto" && port === 465);
     // Shoutrrr's usestarttls=No turns STARTTLS off, like encryption=None.
-    const startTls = !["no", "false", "0"].includes(
-      url.searchParams.get("usestarttls")?.toLowerCase(),
-    );
+    const startTls = stringToBoolean(params.get("usestarttls") || "yes");
     const plain = encryption === "none" || (!implicit && !startTls);
     const transport = nodemailer.createTransport({
       host: url.hostname,
@@ -112,12 +123,8 @@ const services = {
   ntfy(url) {
     const { prefix, last: topic } = lastSegment(url.pathname);
     if (!url.host || !topic) throw new Error("expected ntfy://HOST/TOPIC");
-    const scheme = url.searchParams.get("scheme") === "http" ? "http" : "https";
-    const headers = url.username
-      ? {
-          Authorization: `Basic ${Buffer.from(`${decode(url.username)}:${decode(url.password)}`).toString("base64")}`,
-        }
-      : {};
+    const scheme = paramsOf(url).get("scheme")?.toLowerCase() === "http" ? "http" : "https";
+    const headers = url.username ? { Authorization: basicAuth(url) } : {};
     // JSON publishing keeps emoji titles out of HTTP headers.
     return (text) =>
       postJson(`${scheme}://${url.host}/${prefix}`, { topic, ...split(text) }, headers);
@@ -126,21 +133,47 @@ const services = {
   gotify(url) {
     const { prefix, last: token } = lastSegment(url.pathname);
     if (!url.host || !token) throw new Error("expected gotify://HOST/TOKEN");
-    const scheme = isYes(url.searchParams.get("disabletls")) ? "http" : "https";
+    const scheme = stringToBoolean(paramsOf(url).get("disabletls")) ? "http" : "https";
     return (text) =>
       postJson(`${scheme}://${url.host}/${prefix}message`, split(text), { "X-Gotify-Key": token });
   },
 
   generic(url, transport) {
     if (!url.host) throw new Error("expected generic+https://HOST/PATH");
-    const scheme = transport ?? (isYes(url.searchParams.get("disabletls")) ? "http" : "https");
+    const params = paramsOf(url);
+    const scheme = transport ?? (stringToBoolean(params.get("disabletls")) ? "http" : "https");
     if (!["http", "https"].includes(scheme)) throw new Error("expected generic+https://HOST/PATH");
+    // As in Shoutrrr: @Name=value is a header, $name=value an extra field in the JSON, credentials
+    // in the URL are sent as Basic auth, and these parameters configure the request. The rest are
+    // the target's own query parameters.
+    const options = [
+      "template",
+      "disabletls",
+      "titlekey",
+      "messagekey",
+      "requestmethod",
+      "contenttype",
+    ];
     const target = new URL(`${scheme}://${url.host}${url.pathname}`);
+    const headers = url.username ? { Authorization: basicAuth(url) } : {};
+    const extra = {};
     for (const [key, value] of url.searchParams) {
-      if (!["template", "disabletls"].includes(key.toLowerCase()))
-        target.searchParams.append(key, value);
+      if (key.startsWith("@")) headers[key.slice(1)] = value;
+      else if (key.startsWith("$")) extra[key.slice(1)] = value;
+      else if (!options.includes(key.toLowerCase())) target.searchParams.append(key, value);
     }
-    return (text) => postJson(target, split(text));
+    const titleKey = params.get("titlekey") || "title";
+    const messageKey = params.get("messagekey") || "message";
+    const method = (params.get("requestmethod") || "POST").toUpperCase();
+    return (text) => {
+      const { title, message } = split(text);
+      return postJson(
+        target,
+        { ...extra, [titleKey]: title, [messageKey]: message },
+        headers,
+        method,
+      );
+    };
   },
 };
 
@@ -181,7 +214,7 @@ export async function notify(channels = [], text) {
       try {
         await send(text);
       } catch (err) {
-        log.warn(`${name} notification failed: ${err.message}`);
+        log.warn(`${name} notification failed: ${describeError(err)}`);
       }
     }),
   );

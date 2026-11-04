@@ -1,7 +1,69 @@
-import { mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { rmSync } from "node:fs";
+import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
+import { basename, join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import * as actualApi from "@actual-app/api";
+import { isRunning, withLock } from "./lock.js";
 import { log } from "./log.js";
+
+// Errors from Actual (err.code) that are worth retrying a little later, and how much later.
+const RETRIED = new Set(["network-failure", "timeout"]);
+const RETRY_DELAYS_MS = [10_000, 30_000];
+
+// This process's run directories, with when each run finished (null while it runs).
+const runs = new Map();
+// Actual can still write a budget's metadata.json just after shutdown() (it doesn't await it), and
+// fails loudly if the directory is gone, so a run's directory is only removed a while later.
+const KEEP_FINISHED_RUN_MS = 60_000;
+
+/**
+ * Removes what earlier runs left in dataDir: directories of runs by processes that are gone (or by
+ * this one, a while after they finished), and the budget copy of versions before run directories.
+ * Called holding the lock, so no other run is using them.
+ */
+async function removeOldRuns(dataDir, syncId) {
+  await rm(join(dataDir, syncId), { recursive: true, force: true });
+  for (const entry of await readdir(dataDir)) {
+    const pid = Number(/^run-(\d+)-/.exec(entry)?.[1]);
+    if (!pid) continue;
+    const dir = join(dataDir, entry);
+    const finished = runs.get(dir);
+    const old =
+      pid === process.pid
+        ? finished === undefined ||
+          (finished !== null && Date.now() - finished > KEEP_FINISHED_RUN_MS)
+        : !isRunning(pid);
+    if (old) {
+      await rm(dir, { recursive: true, force: true });
+      runs.delete(dir);
+    }
+  }
+}
+
+/**
+ * Removes the budget's (decrypted) databases from a run directory, db.sqlite and the spreadsheet's
+ * cache.sqlite, leaving Actual's metadata.
+ */
+async function removeDatabases(dir) {
+  const files = await readdir(dir, { recursive: true }).catch(() => []);
+  await Promise.all(
+    files
+      .filter((file) => /\.sqlite\b/.test(basename(file)))
+      .map((file) => rm(join(dir, file), { force: true })),
+  );
+}
+
+/** A new directory for one run, removed by a later run or when the process exits. */
+async function newRunDir(dataDir) {
+  if (runs.size === 0) {
+    process.once("exit", () => {
+      for (const dir of runs.keys()) rmSync(dir, { recursive: true, force: true });
+    });
+  }
+  const dir = await mkdtemp(join(dataDir, `run-${process.pid}-`));
+  runs.set(dir, null);
+  return dir;
+}
 
 // API calls that only read, made as usual in a dry run.
 const READS = /^(get|aqlQuery$|runQuery$|q$)/;
@@ -33,26 +95,58 @@ export function dryRunApi(api, skipped) {
 }
 
 /**
- * Downloads a fresh copy of the budget, runs fn(api), then syncs and always shuts down, returning
- * fn's result. In a dry run, fn gets an API that can't change the budget, and the task's changes
+ * Downloads a fresh copy of the budget into a new directory under dataDir, runs fn(api), then
+ * syncs and always shuts down, returning fn's result. A lock file in dataDir keeps runs from
+ * separate processes apart, and the budget's database is removed once the run is over, as for an
+ * end-to-end encrypted budget it's the decrypted copy. Opening the budget is retried after a
+ * network failure. Actual pushes each change to the server about a second after it's made, and
+ * shutdown() pushes what's left, so a task that fails halfway keeps the changes it made. The
+ * explicit sync is still needed: it's the only one that reports a failed push (shutdown() ignores
+ * sync errors). In a dry run, fn gets an API that can't change the budget, and the task's changes
  * aren't synced. Actual's own schedule service still runs while the budget downloads, though: it
  * posts due "automatically add" schedules and syncs them, as opening the app would.
  */
-export async function withBudget(
-  { serverURL, password, filePassword, syncId, dataDir, dryRun = false },
-  fn,
-  api = actualApi,
-) {
-  const budgetDir = join(dataDir, syncId);
-  await rm(budgetDir, { recursive: true, force: true });
-  await mkdir(budgetDir, { recursive: true });
+export async function withBudget(config, fn, api = actualApi) {
+  await mkdir(config.dataDir, { recursive: true });
+  return withLock(join(config.dataDir, "lock"), async () => {
+    await removeOldRuns(config.dataDir, config.syncId);
+    const budgetDir = await newRunDir(config.dataDir);
+    try {
+      return await openBudget({ ...config, budgetDir }, fn, api);
+    } finally {
+      await removeDatabases(budgetDir);
+      runs.set(budgetDir, Date.now());
+    }
+  });
+}
 
-  try {
-    await api.init({ serverURL, password, dataDir: budgetDir });
-    await api.downloadBudget(syncId, filePassword ? { password: filePassword } : {});
-  } catch (err) {
-    await api.shutdown().catch(() => {});
-    throw new Error(`Actual Budget error: ${err.message}`, { cause: err });
+async function openBudget(
+  {
+    serverURL,
+    password,
+    filePassword,
+    syncId,
+    budgetDir,
+    dryRun = false,
+    retryDelaysMs = RETRY_DELAYS_MS,
+  },
+  fn,
+  api,
+) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await api.init({ serverURL, password, dataDir: budgetDir });
+      await api.downloadBudget(syncId, filePassword ? { password: filePassword } : {});
+      break;
+    } catch (err) {
+      await api.shutdown().catch(() => {});
+      const delay = retryDelaysMs[attempt];
+      if (delay === undefined || !RETRIED.has(err?.code)) {
+        throw new Error(`Actual Budget error: ${err.message}`, { cause: err });
+      }
+      log.warn(`Actual Budget error: ${err.message}; retrying in ${delay / 1000} s`);
+      await sleep(delay);
+    }
   }
 
   const skipped = new Map();
@@ -70,7 +164,8 @@ export async function withBudget(
     await api.shutdown().catch(() => {});
     throw err;
   }
-  await api.shutdown();
+  // Everything is synced by now, so a failure here doesn't fail the task.
+  await api.shutdown().catch((err) => log.warn("Actual shutdown failed:", err.message));
   return result;
 }
 
