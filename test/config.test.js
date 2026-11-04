@@ -162,6 +162,12 @@ describe("loadConfig scheduling and notifications", () => {
     assert.equal(config.runOnStart, true);
   });
 
+  it("reads TASK_TIMEOUT_MINUTES, 30 by default", () => {
+    assert.equal(loadConfig(base).taskTimeoutMinutes, 30);
+    assert.equal(loadConfig({ ...base, TASK_TIMEOUT_MINUTES: "0" }).taskTimeoutMinutes, 0);
+    assert.throws(() => loadConfig({ ...base, TASK_TIMEOUT_MINUTES: "1.5" }), /whole number/);
+  });
+
   it("parses NOTIFICATION_URL", () => {
     assert.deepEqual(loadConfig(base).notifications, []);
     const config = loadConfig({ ...base, NOTIFICATION_URL: "ntfy://ntfy.sh/a discord://t@1" });

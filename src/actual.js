@@ -1,9 +1,14 @@
 import { rmSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import * as actualApi from "@actual-app/api";
 import { isRunning, withLock } from "./lock.js";
 import { log } from "./log.js";
+
+// Errors from Actual (err.code) that are worth retrying a little later, and how much later.
+const RETRIED = new Set(["network-failure", "timeout"]);
+const RETRY_DELAYS_MS = [10_000, 30_000];
 
 // This process's run directories, with when each run finished (null while it runs).
 const runs = new Map();
@@ -93,7 +98,8 @@ export function dryRunApi(api, skipped) {
  * Downloads a fresh copy of the budget into a new directory under dataDir, runs fn(api), then
  * syncs and always shuts down, returning fn's result. A lock file in dataDir keeps runs from
  * separate processes apart, and the budget's database is removed once the run is over, as for an
- * end-to-end encrypted budget it's the decrypted copy. Actual pushes each change to the server about a second after it's made, and
+ * end-to-end encrypted budget it's the decrypted copy. Opening the budget is retried after a
+ * network failure. Actual pushes each change to the server about a second after it's made, and
  * shutdown() pushes what's left, so a task that fails halfway keeps the changes it made. The
  * explicit sync is still needed: it's the only one that reports a failed push (shutdown() ignores
  * sync errors). In a dry run, fn gets an API that can't change the budget, and the task's changes
@@ -115,16 +121,32 @@ export async function withBudget(config, fn, api = actualApi) {
 }
 
 async function openBudget(
-  { serverURL, password, filePassword, syncId, budgetDir, dryRun = false },
+  {
+    serverURL,
+    password,
+    filePassword,
+    syncId,
+    budgetDir,
+    dryRun = false,
+    retryDelaysMs = RETRY_DELAYS_MS,
+  },
   fn,
   api,
 ) {
-  try {
-    await api.init({ serverURL, password, dataDir: budgetDir });
-    await api.downloadBudget(syncId, filePassword ? { password: filePassword } : {});
-  } catch (err) {
-    await api.shutdown().catch(() => {});
-    throw new Error(`Actual Budget error: ${err.message}`, { cause: err });
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await api.init({ serverURL, password, dataDir: budgetDir });
+      await api.downloadBudget(syncId, filePassword ? { password: filePassword } : {});
+      break;
+    } catch (err) {
+      await api.shutdown().catch(() => {});
+      const delay = retryDelaysMs[attempt];
+      if (delay === undefined || !RETRIED.has(err?.code)) {
+        throw new Error(`Actual Budget error: ${err.message}`, { cause: err });
+      }
+      log.warn(`Actual Budget error: ${err.message}; retrying in ${delay / 1000} s`);
+      await sleep(delay);
+    }
   }
 
   const skipped = new Map();

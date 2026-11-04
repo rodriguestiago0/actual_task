@@ -78,6 +78,16 @@ export async function reportConfigError(err, env = process.env) {
 /** Forgets the last configuration error, once the configuration is valid again. */
 export const clearConfigError = (env = process.env) => rm(configErrorFile(env), { force: true });
 
+/** A whole number of minutes, 0 to turn it off. */
+function minutes(env, name, fallback) {
+  if (!env[name]) return fallback;
+  const value = Number(env[name]);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a whole number of minutes, got "${env[name]}"`);
+  }
+  return value;
+}
+
 export function loadConfig(env = process.env) {
   requireEnv(env, ["ACTUAL_SERVER_URL", "ACTUAL_SERVER_PASSWORD", "ACTUAL_SYNC_ID"]);
 
@@ -100,6 +110,7 @@ export function loadConfig(env = process.env) {
         ]),
     ),
     runOnStart: stringToBoolean(env.RUN_ON_START),
+    taskTimeoutMinutes: minutes(env, "TASK_TIMEOUT_MINUTES", 30),
     notifications: parseNotificationUrls(env.NOTIFICATION_URL),
     mortgage: null,
     payeeRename: null,

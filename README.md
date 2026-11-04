@@ -200,10 +200,15 @@ also run every enabled task once at startup. On `SIGTERM`/`SIGINT`, the running 
 before the process exits, and the tasks left in its batch are skipped. Schedules and transaction dates use the local time
 zone (`TZ`).
 
+When Actual's server can't be reached while opening the budget, the run retries twice, after 10
+and 30 seconds. A task still running after `TASK_TIMEOUT_MINUTES` (default 30, `0` turns it off)
+is logged and notified; it isn't stopped, as the Actual API holds one budget for the whole process,
+so the next tasks wait for it.
+
 ## Notifications
 
-When a task run by the scheduler fails, you get a message, and another one the next time it
-succeeds. You also get merge-rules' conflicts and Ghostfolio/Wealthfolio accounts that weren't
+When a task run by the scheduler fails, you get a message (again only when the error changes), and
+another one the next time it succeeds. You also get merge-rules' conflicts and Ghostfolio/Wealthfolio accounts that weren't
 found, had no balance or dropped to 0, once until they change; when there are too many for one message, the rest are counted and
 left in the logs. Runs started from the command line don't
 send notifications.

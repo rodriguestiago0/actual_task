@@ -125,14 +125,16 @@ export function stop() {
   return queue;
 }
 
-// Tasks whose last run failed, so the next successful run can be reported as a recovery.
-const failing = new Set();
+// Each failing task's last error, so the same failure is only notified once, and the next
+// successful run can be reported as a recovery.
+const failing = new Map();
 // Each task's last warning, so the same warning is only notified once.
 const warned = new Map();
 
 /**
- * Runs the given tasks one after another; failures, recoveries and new warnings are logged and
- * notified.
+ * Runs the given tasks one after another; failures, recoveries and warnings are logged, and
+ * notified once until they change. A task still running after config.taskTimeoutMinutes is
+ * notified too.
  */
 export function runTasks(config, names, registry = tasks) {
   return runExclusive(async () => {
@@ -143,6 +145,16 @@ export function runTasks(config, names, registry = tasks) {
         continue;
       }
       log.info(`Running ${name}`);
+      // Only a warning: the task can't be abandoned while it still uses the Actual API, which
+      // holds one budget for the whole process.
+      const minutes = config.taskTimeoutMinutes;
+      const watchdog =
+        minutes > 0 &&
+        setTimeout(() => {
+          const text = `${name} is still running after ${minutes} minutes`;
+          log.error(text);
+          notify(config.notifications, `⏱️ actual-tasks: ${text}`);
+        }, minutes * 60_000);
       try {
         const warning = await registry[name].run(config);
         log.info(`Finished ${name}`);
@@ -156,12 +168,14 @@ export function runTasks(config, names, registry = tasks) {
         }
       } catch (err) {
         ok = false;
-        failing.add(name);
         log.error(`${name} failed:`, err);
-        await notify(
-          config.notifications,
-          `❌ actual-tasks: ${name} failed\n${truncate(describeError(err))}`,
-        );
+        const message = truncate(describeError(err));
+        if (failing.get(name) !== message) {
+          failing.set(name, message);
+          await notify(config.notifications, `❌ actual-tasks: ${name} failed\n${message}`);
+        }
+      } finally {
+        clearTimeout(watchdog);
       }
     }
     return ok;
