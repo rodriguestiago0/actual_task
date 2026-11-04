@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { collectAccountMapping, loadConfig, stringToBoolean } from "../src/config.js";
 import { log } from "../src/log.js";
 
@@ -176,5 +179,25 @@ describe("loadConfig scheduling and notifications", () => {
       ["ntfy", "discord"],
     );
     assert.throws(() => loadConfig({ ...base, NOTIFICATION_URL: "x://y" }), /unsupported/);
+  });
+});
+
+describe("NAME_FILE secrets", () => {
+  it("reads a variable from the file NAME_FILE points to", (t) => {
+    const dir = mkdtempSync(join(tmpdir(), "actual-tasks-secrets-"));
+    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    const file = join(dir, "password");
+    writeFileSync(file, "s3cret\n");
+    const env = { ...base, ACTUAL_SERVER_PASSWORD: undefined, ACTUAL_SERVER_PASSWORD_FILE: file };
+    assert.equal(loadConfig(env).actual.password, "s3cret");
+
+    assert.throws(
+      () => loadConfig({ ...base, ACTUAL_SERVER_PASSWORD_FILE: file }),
+      /Set ACTUAL_SERVER_PASSWORD or ACTUAL_SERVER_PASSWORD_FILE, not both/,
+    );
+    assert.throws(
+      () => loadConfig({ ...env, ACTUAL_SERVER_PASSWORD_FILE: join(dir, "missing") }),
+      /ACTUAL_SERVER_PASSWORD_FILE: can't read .*missing \(ENOENT\)/,
+    );
   });
 });

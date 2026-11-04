@@ -15,6 +15,11 @@ sync. Run them once from the command line or on a schedule, either with Node.js 
 3. Enable the tasks you want (see [Tasks](#tasks)) and fill in their variables.
 4. Run one task: `node index.js fix-payees`. Run every enabled task on a schedule: `npm start`.
 
+Any variable can instead be read from a file by adding `_FILE` to its name, e.g.
+`ACTUAL_SERVER_PASSWORD_FILE=/run/secrets/actual_password` (Docker or Compose secrets), so
+passwords, tokens and `NOTIFICATION_URL` don't have to be in the environment. A trailing newline
+is ignored. Setting both `NAME` and `NAME_FILE` is an error.
+
 A task only runs when its `ENABLE_*` variable is `true`, including when you run it by hand.
 `node index.js -h` lists the commands.
 
@@ -83,7 +88,9 @@ category:
 | `imported payee is Compra Zara Porto → payee Zara`<br>`imported payee contains ZARA → payee Zara` | `imported payee is Compra Zara Porto or contains ZARA → payee Zara` |
 
 Rules are merged when they are in the same stage, compare a single field with "is", "is one of" or
-"contains", and have exactly the same actions. Rules whose conditions must all match are merged too
+"contains", and have exactly the same actions. Only fields Actual allows "is one of" on are merged
+this way: payee, imported payee, account, category and category group. Rules on other fields
+(amount, date, notes, ...) are only deleted when they are exact duplicates. Rules whose conditions must all match are merged too
 when they have the same actions and differ only in one "is"/"is one of" condition (payee first,
 then imported payee, account, category), e.g. `payee is Ana and amount < 0 → Loan` and `payee is
 Rui and amount < 0 → Loan` become `payee is one of Ana, Rui and amount < 0 → Loan`. The merged rule keeps one of the rules' IDs; the
@@ -217,8 +224,8 @@ left in the logs. Runs started from the command line don't
 send notifications.
 
 Set `NOTIFICATION_URL` to one or more space-separated URLs. They use the same format as
-[Watchtower](https://containrrr.dev/watchtower/notifications/) (Shoutrrr), so you can reuse existing
-Watchtower URLs:
+[Watchtower](https://containrrr.dev/watchtower/notifications/) (Shoutrrr), so you can usually reuse
+existing Watchtower URLs for the services below; Shoutrrr options not mentioned here are ignored:
 
 | Service  | URL                                                                                           |
 | -------- | --------------------------------------------------------------------------------------------- |

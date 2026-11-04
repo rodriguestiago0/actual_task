@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import cron from "node-cron";
 import { clearConfigError, loadConfig, loadEnvFile, reportConfigError } from "./src/config.js";
 import {
@@ -44,11 +46,21 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 
+// Touched whenever every task of a batch succeeds, for a container health check.
+const lastSuccess = join(config.actual.dataDir, "last-success");
+async function runBatch(names) {
+  if (await runTasks(config, names)) {
+    await writeFile(lastSuccess, new Date().toISOString()).catch((err) =>
+      log.warn(`Couldn't write ${lastSuccess}:`, err.message),
+    );
+  }
+}
+
 for (const [expression, names] of groups) {
   const task = cron.schedule(
     expression,
     async () => {
-      await runTasks(config, names);
+      await runBatch(names);
       log.info(`Next run of ${names.join(", ")}:`, task.getNextRun()?.toISOString());
     },
     { noOverlap: true },
@@ -64,4 +76,4 @@ if (config.notifications.length > 0) {
   log.info(`Notifications: ${config.notifications.map((channel) => channel.name).join(", ")}`);
 }
 
-if (config.runOnStart) await runTasks(config, enabled);
+if (config.runOnStart) await runBatch(enabled);

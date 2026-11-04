@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { stringToBoolean } from "./bool.js";
@@ -51,6 +52,25 @@ export function collectAccountMapping(env, prefix) {
   return mapping;
 }
 
+/**
+ * The environment with each NAME_FILE variable replaced by NAME, read from that file (Docker and
+ * Compose secrets), so secrets don't have to be in the container's environment.
+ */
+export function withFileSecrets(env) {
+  const resolved = { ...env };
+  for (const [key, path] of Object.entries(env)) {
+    if (!key.endsWith("_FILE") || !path) continue;
+    const name = key.slice(0, -"_FILE".length);
+    if (env[name]) throw new Error(`Set ${name} or ${key}, not both`);
+    try {
+      resolved[name] = readFileSync(path, "utf8").replace(/\r?\n$/, "");
+    } catch (err) {
+      throw new Error(`${key}: can't read ${path} (${err.code ?? err.message})`, { cause: err });
+    }
+  }
+  return resolved;
+}
+
 const dataDirOf = (env) => env.ACTUAL_DATA_DIR || "./temp_data_actual";
 // The last configuration error notified, so a container restarting on it notifies once.
 const configErrorFile = (env) => join(dataDirOf(env), "config-error");
@@ -63,7 +83,7 @@ export async function reportConfigError(err, env = process.env) {
   log.error(`Invalid configuration: ${err.message}`);
   let channels;
   try {
-    channels = parseNotificationUrls(env.NOTIFICATION_URL);
+    channels = parseNotificationUrls(withFileSecrets(env).NOTIFICATION_URL);
   } catch {
     return;
   }
@@ -89,6 +109,7 @@ function minutes(env, name, fallback) {
 }
 
 export function loadConfig(env = process.env) {
+  env = withFileSecrets(env);
   requireEnv(env, ["ACTUAL_SERVER_URL", "ACTUAL_SERVER_PASSWORD", "ACTUAL_SYNC_ID"]);
 
   const config = {

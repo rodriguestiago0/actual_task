@@ -51,6 +51,27 @@ services:
     stop_grace_period: 2m # lets a running task finish on docker stop
 ```
 
+Secrets can come from files instead of the environment: add `_FILE` to a variable's name, e.g.
+`ACTUAL_SERVER_PASSWORD_FILE=/run/secrets/actual_password` with a Compose `secrets:` entry.
+
+### Health check
+
+The scheduler touches `temp_data_actual/last-success` each time every task of a scheduled run
+succeeds. To have Docker report the container unhealthy when that is too old, add a health check to the service
+with an age a bit over two schedule intervals (9 hours for the default 4-hour schedule), and a
+`start_period` longer than one interval so the first run has time to happen:
+
+```yaml
+healthcheck:
+  test:
+    - CMD
+    - node
+    - -e
+    - "const s=require('fs').statSync('temp_data_actual/last-success',{throwIfNoEntry:false});process.exit(s&&Date.now()-s.mtimeMs<9*3600e3?0:1)"
+  interval: 5m
+  start_period: 5h
+```
+
 Run a single task once in the running container:
 
 ```bash
