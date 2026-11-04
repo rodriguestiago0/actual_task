@@ -169,6 +169,11 @@ const payeeRule = (id, conditions, payee, conditionsOp = "and") => ({
   actions: [{ field: "description", op: "set", value: payee, type: "id" }],
 });
 
+const importedRule = (id, value, category) => ({
+  ...categoryRule(id, "is", value, category),
+  conditions: [{ field: "imported_description", op: "is", value, type: "string" }],
+});
+
 describe("planRuleMerges", () => {
   it("merges rules with the same actions into one is-one-of rule", () => {
     const { merges, conflicts } = planRuleMerges([
@@ -348,6 +353,45 @@ describe("planRuleMerges", () => {
     assert.deepEqual(conflicts, [{ value: "continente", rules: [continente, bomDia] }]);
   });
 
+  it("leaves rules alone when merging would reorder them with a rule on another field", () => {
+    // "zara lisboa" ends as gifts: zara runs after it, by id; one of zara, mango would run first
+    const zaraLisboa = importedRule("a", "zara lisboa", "clothes");
+    const zara = categoryRule("b", "is", "zara", "gifts");
+    const mango = categoryRule("c", "is", "mango", "gifts");
+    const { merges, conflicts } = planRuleMerges([zaraLisboa, zara, mango]);
+    assert.deepEqual(merges, []);
+    assert.deepEqual(conflicts, [{ rules: [zara, mango], reordered: [zaraLisboa] }]);
+  });
+
+  it("leaves rules alone when the kept ID would reorder them", () => {
+    const zaraLisboa = importedRule("2", "zara lisboa", "clothes");
+    const zara = categoryRule("1", "is", "zara", "gifts");
+    const zaraAgain = categoryRule("3", "is", "zara", "gifts");
+    const { merges, conflicts } = planRuleMerges([zara, zaraLisboa, zaraAgain]);
+    assert.deepEqual(merges, []);
+    assert.deepEqual(conflicts, [{ rules: [zara, zaraAgain], reordered: [zaraLisboa] }]);
+  });
+
+  it("leaves rules alone when merging would reorder them with a rule setting what they read", () => {
+    const rename = { ...payeeRule("a", [["is", "Zara Porto"]], "zara"), stage: null };
+    const zara = categoryRule("b", "is", "zara", "clothes");
+    const mango = categoryRule("c", "is", "mango", "clothes");
+    const { merges, conflicts } = planRuleMerges([rename, zara, mango]);
+    assert.deepEqual(merges, []);
+    assert.deepEqual(conflicts, [{ rules: [zara, mango], reordered: [rename] }]);
+  });
+
+  it("merges when the reordered rules can't match the same transaction", () => {
+    const { merges, conflicts } = planRuleMerges([
+      categoryRule("a", "is", "pingo doce", "groceries"),
+      categoryRule("b", "is", "zara", "clothes"),
+      categoryRule("c", "is", "mango", "clothes"),
+      { ...categoryRule("d", "is", "x", "other"), actions: [{ field: "notes", op: "set" }] },
+    ]);
+    assert.deepEqual(conflicts, []);
+    assert.equal(merges.length, 1);
+  });
+
   it("deletes exact duplicates of other rules", () => {
     const rule = (id) => ({
       ...payeeRule(
@@ -388,6 +432,20 @@ describe("mergeRules", () => {
     const [conflict, ...rest] = await mergeRules(api);
     assert.equal(rest.length, 0);
     assert.match(conflict, /Not merging 2 rules that can match "doce alto"/);
+    assert.equal(callsTo(api, "updateRule").length, 0);
+  });
+  it("returns the merges it left alone to keep the rule order", async () => {
+    const api = fakeApi({
+      rules: [
+        importedRule("a", "zara lisboa", "clothes"),
+        categoryRule("b", "is", "zara", "gifts"),
+        categoryRule("c", "is", "mango", "gifts"),
+      ],
+    });
+    const [conflict, ...rest] = await mergeRules(api);
+    assert.equal(rest.length, 0);
+    assert.match(conflict, /Not merging 2 rules, as it would change their order/);
+    assert.match(conflict, /with: if imported_description is "zara lisboa"/);
     assert.equal(callsTo(api, "updateRule").length, 0);
   });
 });

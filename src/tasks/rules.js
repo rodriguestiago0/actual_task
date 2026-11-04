@@ -97,6 +97,149 @@ function mergedConditions(rule, { field, type, context, index }, exact, contains
   return { conditionsOp: conditions.length > 1 ? "or" : "and", conditions };
 }
 
+// How Actual orders the rules of a stage (rankRules in @actual-app/api): by ascending score, then
+// by id, with later rules overriding earlier ones.
+const OP_SCORES = {
+  is: 10,
+  isNot: 10,
+  oneOf: 9,
+  notOneOf: 9,
+  isapprox: 5,
+  isbetween: 5,
+  gt: 1,
+  gte: 1,
+  lt: 1,
+  lte: 1,
+  contains: 0,
+  doesNotContain: 0,
+  matches: 0,
+  hasTags: 0,
+  hasAnyTag: 0,
+  onBudget: 0,
+  offBudget: 0,
+};
+const EXACT_OPS = new Set(["is", "isNot", "isapprox", "oneOf", "notOneOf"]);
+
+function score({ conditions }) {
+  // an unknown operation resets the score, as in Actual
+  const total = conditions.reduce(
+    (sum, { op }) => (Object.hasOwn(OP_SCORES, op) ? sum + OP_SCORES[op] : 0),
+    0,
+  );
+  return conditions.every(({ op }) => EXACT_OPS.has(op)) ? total * 2 : total;
+}
+
+/** -1 when Actual runs rule a before rule b, 1 when after. */
+const order = (a, b) => Math.sign(score(a) - score(b)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+const FIELD_ALIASES = {
+  description: "payee",
+  imported_description: "imported_payee",
+  payee_name: "payee",
+};
+const fieldName = (field) => FIELD_ALIASES[field] ?? field;
+
+const ACTION_FIELDS = {
+  "set-split-amount": "amount",
+  "link-schedule": "schedule",
+  "prepend-notes": "notes",
+  "append-notes": "notes",
+  "delete-transaction": "tombstone",
+};
+const writes = (rule) =>
+  new Set(rule.actions.map(({ op, field }) => fieldName(op === "set" ? field : ACTION_FIELDS[op])));
+
+// templates and formulas can read any field
+const reads = (rule) =>
+  rule.actions.some(({ options }) => options?.template || options?.formula)
+    ? new Set(["*"])
+    : new Set(rule.conditions.map(({ field }) => fieldName(field)));
+
+const overlap = (a, b) => a.has("*") || b.has("*") || [...a].some((field) => b.has(field));
+
+/** Whether the order of two rules can change a transaction: one sets what the other sets or reads. */
+const dependent = (a, b) =>
+  overlap(writes(a), writes(b)) || overlap(writes(a), reads(b)) || overlap(reads(a), writes(b));
+
+/** The values a rule needs on a field, as { exact, contains } (lowercased), or null for any. */
+function required({ conditions, conditionsOp }, field) {
+  const onField = conditions.filter((c) => fieldName(c.field) === field && !setOptions(c.options));
+  const valuesOf = (c) => (c.op === "oneOf" ? c.value : [c.value]);
+  const sets = (ops) => onField.filter((c) => ops.includes(c.op));
+  if (onField.some((c) => c.op === "oneOf" && !Array.isArray(c.value))) return null;
+  if (conditionsOp === "or" && conditions.length > 1) {
+    if (onField.length !== conditions.length) return null;
+    if (onField.some((c) => !["is", "oneOf", "contains"].includes(c.op))) return null;
+    return {
+      exact: sets(["is", "oneOf"]).flatMap(valuesOf).map(lower),
+      contains: sets(["contains"]).map((c) => lower(c.value)),
+    };
+  }
+  const [exact] = sets(["is", "oneOf"]);
+  if (exact) return { exact: valuesOf(exact).map(lower), contains: [] };
+  const contains = sets(["contains"]).map((c) => lower(c.value));
+  return contains.length > 0 ? { exact: [], contains } : null;
+}
+
+function canMatchBoth(a, b) {
+  const found = (value, needles) =>
+    typeof value === "string" && needles.some((needle) => value.includes(needle));
+  return (
+    a.exact.some((value) => b.exact.includes(value) || found(value, b.contains)) ||
+    b.exact.some((value) => found(value, a.contains)) ||
+    (a.contains.length > 0 && b.contains.length > 0)
+  );
+}
+
+/** Whether no transaction can match both rules, on a field no rule in the stage sets. */
+function exclusive(a, b, setFields) {
+  return a.conditions.some(({ field }) => {
+    const name = fieldName(field);
+    if (setFields.has(name)) return false;
+    const [ra, rb] = [required(a, name), required(b, name)];
+    return ra && rb && !canMatchBoth(ra, rb);
+  });
+}
+
+/**
+ * Leaves alone the merges that would change which rule Actual runs last on a transaction both
+ * rules can match: merged conditions score differently and the kept ID changes ties. Returns the
+ * merges to make and, for each one left alone, { rules, reordered: the rules it would reorder }.
+ */
+function keepOrder(merges, rules) {
+  const stageOf = (rule) => rule.stage ?? null;
+  const setFields = new Map(
+    [...Map.groupBy(rules, stageOf)].map(([stage, inStage]) => [
+      stage,
+      new Set(inStage.flatMap((rule) => [...writes(rule)])),
+    ]),
+  );
+
+  const conflicts = [];
+  for (;;) {
+    const mergedOf = new Map(merges.flatMap((m) => m.rules.map((rule) => [rule.id, m.rule])));
+    const blocked = new Map();
+    for (const merge of merges) {
+      const ids = new Set(merge.rules.map((rule) => rule.id));
+      const reordered = rules.filter(
+        (other) =>
+          !ids.has(other.id) &&
+          stageOf(other) === stageOf(merge.rule) &&
+          merge.rules.some(
+            (rule) =>
+              order(rule, other) !== order(merge.rule, mergedOf.get(other.id) ?? other) &&
+              dependent(rule, other) &&
+              !exclusive(rule, other, setFields.get(stageOf(other))),
+          ),
+      );
+      if (reordered.length > 0) blocked.set(merge, reordered);
+    }
+    if (blocked.size === 0) return { merges, conflicts };
+    for (const [merge, reordered] of blocked) conflicts.push({ rules: merge.rules, reordered });
+    merges = merges.filter((merge) => !blocked.has(merge));
+  }
+}
+
 /**
  * Plans rule clean-ups:
  * - rules that only compare one field with "is", "is one of" or "contains" and have the same
@@ -111,7 +254,9 @@ function mergedConditions(rule, { field, type, context, index }, exact, contains
  * Merging changes the order Actual applies rules in, so rules that can match the same text with
  * different actions are reported as conflicts and left alone: the same value (e.g. "payee is A →
  * Coffee" and "payee is A → Restaurant"), or a "contains" value found in another rule's value
- * (e.g. "contains Continente → Continente" and "is Continente Bom Dia → Bom Dia").
+ * (e.g. "contains Continente → Continente" and "is Continente Bom Dia → Bom Dia"). So are merges
+ * that would move a rule past another rule in the stage that can match the same transaction and
+ * sets a field the rule sets or reads, or reads a field it sets.
  */
 export function planRuleMerges(rules) {
   const candidates = rules
@@ -166,6 +311,7 @@ export function planRuleMerges(rules) {
     merges.push({
       rule: { ...target.rule, ...mergedConditions(target.rule, target.match, exact, contains) },
       removeIds: rest.map(({ rule }) => rule.id),
+      rules: group.map(({ rule }) => rule),
     });
   }
 
@@ -183,10 +329,14 @@ export function planRuleMerges(rules) {
   for (const group of duplicates.values()) {
     if (group.length < 2) continue;
     const [target, ...rest] = group.toSorted((a, b) => a.id.localeCompare(b.id));
-    merges.push({ rule: target, removeIds: rest.map((rule) => rule.id) });
+    merges.push({ rule: target, removeIds: rest.map((rule) => rule.id), rules: group });
   }
 
-  return { merges, conflicts };
+  const kept = keepOrder(merges, rules);
+  return {
+    merges: kept.merges.map(({ rule, removeIds }) => ({ rule, removeIds })),
+    conflicts: [...conflicts, ...kept.conflicts],
+  };
 }
 
 /** Describes rule parts with payee, category and account names instead of IDs. */
@@ -209,10 +359,13 @@ export async function mergeRules(api) {
   const { merges, conflicts } = planRuleMerges(await api.getRules());
   const describe = await describer(api);
 
-  const warnings = conflicts.map(
-    ({ value, rules }) =>
-      `Not merging ${rules.length} rules that can match ${JSON.stringify(value)} with different actions:\n` +
-      rules.map((rule) => `  ${describe(rule)}`).join("\n"),
+  const list = (rules, prefix = "") => rules.map((rule) => `  ${prefix}${describe(rule)}`);
+  const warnings = conflicts.map(({ value, rules, reordered }) =>
+    reordered
+      ? `Not merging ${rules.length} rules, as it would change their order with rules that can match the same transactions:\n` +
+        [...list(rules), ...list(reordered, "with: ")].join("\n")
+      : `Not merging ${rules.length} rules that can match ${JSON.stringify(value)} with different actions:\n` +
+        list(rules).join("\n"),
   );
   for (const warning of warnings) log.warn(warning);
 
