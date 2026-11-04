@@ -217,17 +217,24 @@ Set `NOTIFICATION_URL` to one or more space-separated URLs. They use the same fo
 [Watchtower](https://containrrr.dev/watchtower/notifications/) (Shoutrrr), so you can reuse existing
 Watchtower URLs:
 
-| Service  | URL                                                                           |
-| -------- | ----------------------------------------------------------------------------- |
-| Telegram | `telegram://BOT_TOKEN@telegram?chats=CHAT_ID[,CHAT_ID]`                       |
-| Discord  | `discord://TOKEN@WEBHOOK_ID`                                                  |
-| Slack    | `slack://hook:T-B-X@webhook` (from `https://hooks.slack.com/services/T/B/X`)  |
-| Email    | `smtp://USER:PASSWORD@HOST:PORT/?from=ADDRESS&to=ADDRESS[,ADDRESS]`           |
-| ntfy     | `ntfy://[USER:PASSWORD@]HOST/TOPIC`                                           |
-| Gotify   | `gotify://HOST/APP_TOKEN`                                                     |
-| Webhook  | `generic+https://HOST/PATH` (POSTs JSON `{"title": "...", "message": "..."}`) |
+| Service  | URL                                                                                           |
+| -------- | --------------------------------------------------------------------------------------------- |
+| Telegram | `telegram://BOT_TOKEN@telegram?chats=CHAT_ID[,CHAT_ID]`                                       |
+| Discord  | `discord://TOKEN@WEBHOOK_ID`                                                                  |
+| Slack    | `slack://hook:T-B-X@webhook` (from `https://hooks.slack.com/services/T/B/X`)                  |
+| Email    | `smtp://USER:PASSWORD@HOST:PORT/?fromaddress=ADDRESS&toaddresses=ADDRESS[,ADDRESS]`           |
+| ntfy     | `ntfy://[USER:PASSWORD@]HOST/TOPIC`                                                           |
+| Gotify   | `gotify://HOST/APP_TOKEN`                                                                     |
+| Webhook  | `generic+https://[USER:PASSWORD@]HOST/PATH` (POSTs JSON `{"title": "...", "message": "..."}`) |
 
-Telegram also accepts `channels=` instead of `chats=`, as older Watchtower URLs use it.
+Query parameter names ignore case, as in Shoutrrr. Telegram also accepts `channels=` instead of
+`chats=`, as older Watchtower URLs use it, and email also accepts the shorter `from=` and `to=`.
+
+The webhook follows Shoutrrr's generic service: `@Name=value` parameters are sent as headers (e.g.
+`@Authorization=Bearer%20TOKEN`), `$name=value` ones as extra JSON fields, credentials in the URL
+as Basic auth, and `titlekey=`, `messagekey=` and `requestmethod=` rename the fields or change the
+method. Other parameters stay on the target URL. Unlike Shoutrrr, it always sends JSON, with or
+without `template=json`.
 
 URL-encode special characters in credentials (e.g. `@` → `%40`). Email follows Shoutrrr's
 `encryption=` values: `Auto` (default) uses implicit TLS on port 465 and STARTTLS on other ports,
