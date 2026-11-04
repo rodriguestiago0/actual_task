@@ -117,7 +117,7 @@ difference adds an adjustment transaction for it, so the schedule sets how often
 | Ghostfolio                     | Wealthfolio                     | Meaning                              |
 | ------------------------------ | ------------------------------- | ------------------------------------ |
 | `GHOSTFOLIO_SERVER_URL`        | `WEALTHFOLIO_SERVER_URL`        | Server URL, e.g. `http://host:3333`  |
-| `GHOSTFOLIO_TOKEN`             | —                               | Bearer token, see below              |
+| `GHOSTFOLIO_ACCESS_TOKEN`      | —                               | Security token, see below            |
 | `GHOSTFOLIO_ACCOUNT`           | `WEALTHFOLIO_ACCOUNT`           | Account ID in Ghostfolio/Wealthfolio |
 | `GHOSTFOLIO_ACTUAL_ACCOUNT`    | `WEALTHFOLIO_ACTUAL_ACCOUNT`    | Actual account ID                    |
 | `GHOSTFOLIO_ACTUAL_PAYEE_NAME` | `WEALTHFOLIO_ACTUAL_PAYEE_NAME` | Payee of the adjustment transaction  |
@@ -126,18 +126,20 @@ To sync more accounts, add the same three account variables with a `_1`, `_2`, .
 `GHOSTFOLIO_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_ACCOUNT_1`, `GHOSTFOLIO_ACTUAL_PAYEE_NAME_1`). Numbering
 stops at the first set with a missing variable.
 
+Ghostfolio balances are in the Ghostfolio account's own currency (its `value`, not
+`valueInBaseCurrency`), not your base currency. Map each one to an Actual account in that currency.
+
 Wealthfolio is called without authentication. Before reading balances, the task asks Wealthfolio to
 refresh valuations (`POST /api/v1/portfolio/update`).
 
-#### Get the Ghostfolio token
+#### Ghostfolio token
 
-Exchange the security token you sign in to Ghostfolio with for a bearer token, and set the returned
-`authToken` as `GHOSTFOLIO_TOKEN`:
+Set `GHOSTFOLIO_ACCESS_TOKEN` to the security token you sign in to Ghostfolio with. On each run the
+task exchanges it for a fresh bearer token (`POST /api/v1/auth/anonymous`), so nothing expires.
 
-```bash
-curl -X POST http://127.0.0.1:3333/api/v1/auth/anonymous \
-  -H "Content-Type: application/json" -d '{"accessToken": "<SECURITY_TOKEN>"}'
-```
+The older `GHOSTFOLIO_TOKEN`, a bearer token you got from that endpoint yourself, still works when
+`GHOSTFOLIO_ACCESS_TOKEN` isn't set, but it expires after 180 days, after which the sync fails
+with a 401 error. Replace it with `GHOSTFOLIO_ACCESS_TOKEN`.
 
 ### Bank sync
 

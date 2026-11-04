@@ -83,6 +83,26 @@ describe("loadConfig", () => {
     assert.equal(loadConfig({ ...base, ENABLE_RULE_MERGE: "true" }).ruleMerge, true);
   });
 
+  it("configures Ghostfolio with the security token, falling back to GHOSTFOLIO_TOKEN", () => {
+    const env = {
+      ...base,
+      ENABLE_GHOSTFOLIO_SYNC: "true",
+      GHOSTFOLIO_SERVER_URL: "https://gf.example",
+      GHOSTFOLIO_ACCOUNT: "g",
+      GHOSTFOLIO_ACTUAL_ACCOUNT: "A",
+      GHOSTFOLIO_ACTUAL_PAYEE_NAME: "Invest",
+    };
+    assert.throws(() => loadConfig(env), /GHOSTFOLIO_ACCESS_TOKEN/);
+
+    const withAccess = loadConfig({ ...env, GHOSTFOLIO_ACCESS_TOKEN: "s", GHOSTFOLIO_TOKEN: "j" });
+    assert.equal(withAccess.ghostfolio.accessToken, "s");
+    assert.equal(withAccess.ghostfolio.token, null);
+
+    const legacy = loadConfig({ ...env, GHOSTFOLIO_TOKEN: "j" });
+    assert.equal(legacy.ghostfolio.accessToken, null);
+    assert.equal(legacy.ghostfolio.token, "j");
+  });
+
   it("configures Wealthfolio", () => {
     const config = loadConfig({
       ...base,
