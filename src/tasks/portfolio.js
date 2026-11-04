@@ -2,8 +2,23 @@ import { formatDate, importTransactions, requireOpenAccounts } from "../actual.j
 import { requestJson } from "../http.js";
 import { log } from "../log.js";
 
-export async function fetchGhostfolioBalances({ serverURL, token }) {
-  const json = await requestJson(`${serverURL}/api/v1/account`, {
+/** Exchanges the Ghostfolio security token for a JWT (valid for 180 days). */
+async function ghostfolioAuthToken({ serverURL, accessToken, token }) {
+  if (!accessToken) {
+    log.warn("GHOSTFOLIO_TOKEN expires after 180 days; set GHOSTFOLIO_ACCESS_TOKEN instead");
+    return token;
+  }
+  const { authToken } = await requestJson(`${serverURL}/api/v1/auth/anonymous`, {
+    method: "POST",
+    body: { accessToken },
+  });
+  return authToken;
+}
+
+/** Returns each account's balance in the account's own currency, not the user's base currency. */
+export async function fetchGhostfolioBalances(ghostfolio) {
+  const token = await ghostfolioAuthToken(ghostfolio);
+  const json = await requestJson(`${ghostfolio.serverURL}/api/v1/account`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return new Map(json.accounts.map((account) => [account.id, account.value]));

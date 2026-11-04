@@ -112,10 +112,16 @@ export function loadConfig(env = process.env) {
   }
 
   if (stringToBoolean(env.ENABLE_GHOSTFOLIO_SYNC)) {
-    requireEnv(env, ["GHOSTFOLIO_SERVER_URL", "GHOSTFOLIO_TOKEN"]);
+    requireEnv(env, ["GHOSTFOLIO_SERVER_URL"]);
+    if (!env.GHOSTFOLIO_ACCESS_TOKEN && !env.GHOSTFOLIO_TOKEN) {
+      throw new Error("Missing environment variable(s): GHOSTFOLIO_ACCESS_TOKEN");
+    }
     config.ghostfolio = {
       serverURL: env.GHOSTFOLIO_SERVER_URL,
-      token: env.GHOSTFOLIO_TOKEN,
+      // The security token, exchanged for a fresh JWT on each run. GHOSTFOLIO_TOKEN (a JWT that
+      // expires after 180 days) is still accepted when it isn't set.
+      accessToken: env.GHOSTFOLIO_ACCESS_TOKEN || null,
+      token: env.GHOSTFOLIO_ACCESS_TOKEN ? null : env.GHOSTFOLIO_TOKEN,
       accounts: collectAccountMapping(env, "GHOSTFOLIO"),
     };
   }
