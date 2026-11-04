@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
-import { dryRunApi, withBudget } from "../src/actual.js";
+import { dryRunApi, importTransactions, withBudget } from "../src/actual.js";
 import { idle, runTasks, summarize } from "../src/engine.js";
+import { log } from "../src/log.js";
 import { parseNotificationUrls } from "../src/notify.js";
 import { callsTo, fakeApi } from "./fake-api.js";
 
@@ -76,6 +77,25 @@ describe("dryRunApi", () => {
     assert.deepEqual([...skipped], [["updateRule", 2]]);
     assert.deepEqual(callsTo(api, "importTransactions"), [
       ["importTransactions", "acc", [{ amount: 1 }], { defaultCleared: true, dryRun: true }],
+    ]);
+  });
+});
+
+describe("importTransactions", () => {
+  const logged = async (t, api) => {
+    const info = mock.method(log, "info", () => {});
+    t.after(() => info.mock.restore());
+    await importTransactions(api, "acc", [{ amount: 1 }]);
+    return info.mock.calls.map((call) => call.arguments[0]);
+  };
+
+  it("logs what it imported", async (t) => {
+    assert.deepEqual(await logged(t, fakeApi()), ["Imported into acc: 1 added, 0 updated"]);
+  });
+
+  it("says what it would import in a dry run", async (t) => {
+    assert.deepEqual(await logged(t, dryRunApi(fakeApi(), new Map())), [
+      "Would import into acc: 1 added, 0 updated",
     ]);
   });
 });
