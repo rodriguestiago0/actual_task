@@ -211,7 +211,8 @@ before the process exits, and the tasks left in its batch are skipped. Schedules
 zone (`TZ`).
 
 When Actual's server can't be reached while opening the budget, the run retries twice, after 10
-and 30 seconds. A task still running after `TASK_TIMEOUT_MINUTES` (default 30, `0` turns it off)
+and 30 seconds. Ghostfolio and Wealthfolio reads are retried after 1 and 5 seconds on a network
+error, a timeout or a 5xx answer. A task still running after `TASK_TIMEOUT_MINUTES` (default 30, `0` turns it off)
 is logged and notified; it isn't stopped, as the Actual API holds one budget for the whole process,
 so the next tasks wait for it.
 

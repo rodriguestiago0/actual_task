@@ -4,9 +4,19 @@ on:
   pull_request:
   # Called by the release workflow, so nothing is released from a red main.
   workflow_call:
+    inputs:
+      docker:
+        description: Also build the image for every platform
+        type: boolean
+        default: true
 
 permissions:
   contents: read
+
+# A new push to a PR cancels its running CI. Runs called by Release get a group of their own.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ci-{0}', github.ref) || format('ci-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:
@@ -24,8 +34,11 @@ jobs:
       - run: npm run lint
       - run: npm test
 
-  # Catches Dockerfile breakage (e.g. the arm/v7 better-sqlite3 build) before a release.
+  # Catches Dockerfile breakage (e.g. the arm/v7 better-sqlite3 build) before a merge, and before
+  # Release creates a release, whose publish job then reuses the cached layers. A caller can skip it
+  # with docker: false.
   docker:
+    if: github.event_name == 'pull_request' || inputs.docker
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
