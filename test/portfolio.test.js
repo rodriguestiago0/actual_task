@@ -25,7 +25,7 @@ describe("fetchGhostfolioBalances", () => {
     assert.equal(authUrl, "https://gf/api/v1/auth/anonymous");
     assert.equal(auth.method, "POST");
     assert.equal(auth.body, '{"accessToken":"secret"}');
-    assert.equal(accountUrl, "https://gf/api/v1/account");
+    assert.equal(accountUrl, "https://gf/api/v1/accounts");
     assert.equal(account.headers.Authorization, "Bearer jwt");
   });
 
@@ -39,5 +39,35 @@ describe("fetchGhostfolioBalances", () => {
     assert.equal(fetch.mock.calls.length, 1);
     assert.equal(fetch.mock.calls[0].arguments[1].headers.Authorization, "Bearer jwt");
     assert.match(warn.mock.calls[0].arguments[0], /GHOSTFOLIO_ACCESS_TOKEN/);
+  });
+
+  it("falls back to /api/v1/account on Ghostfolio before 3.94.0", async (t) => {
+    const fetch = mockFetch(t, new Response("Not Found", { status: 404 }), Response.json(accounts));
+    const balances = await fetchGhostfolioBalances({ serverURL: "https://gf", token: "jwt" });
+
+    assert.deepEqual([...balances], [["g", 12.5]]);
+    assert.deepEqual(
+      fetch.mock.calls.map((c) => c.arguments[0]),
+      ["https://gf/api/v1/accounts", "https://gf/api/v1/account"],
+    );
+  });
+
+  it("doesn't fall back on other errors", async (t) => {
+    mockFetch(t, new Response("Unauthorized", { status: 401 }));
+    await assert.rejects(
+      fetchGhostfolioBalances({ serverURL: "https://gf", token: "jwt" }),
+      /GET \/api\/v1\/accounts failed: 401/,
+    );
+  });
+
+  it("warns when Restricted view hides the values", async (t) => {
+    const warn = mock.method(log, "warn", () => {});
+    t.after(() => warn.mock.restore());
+    mockFetch(t, Response.json({ accounts: [{ id: "g", value: null }] }));
+
+    const balances = await fetchGhostfolioBalances({ serverURL: "https://gf", token: "jwt" });
+
+    assert.equal(balances.get("g"), null);
+    assert.ok(warn.mock.calls.some((c) => /Restricted view/.test(c.arguments[0])));
   });
 });

@@ -18,9 +18,19 @@ async function ghostfolioAuthToken({ serverURL, accessToken, token }) {
 /** Returns each account's balance in the account's own currency, not the user's base currency. */
 export async function fetchGhostfolioBalances(ghostfolio) {
   const token = await ghostfolioAuthToken(ghostfolio);
-  const json = await requestJson(`${ghostfolio.serverURL}/api/v1/account`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const get = (path) =>
+    requestJson(`${ghostfolio.serverURL}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  // /api/v1/accounts replaced /api/v1/account in Ghostfolio 3.94.0; older servers only have the
+  // deprecated one.
+  const json = await get("/api/v1/accounts").catch((err) => {
+    if (err.status !== 404) throw err;
+    return get("/api/v1/account");
   });
+  if (json.accounts.some((account) => account.value == null)) {
+    log.warn("Ghostfolio hid account values; turn off Restricted view for the synced user");
+  }
   return new Map(json.accounts.map((account) => [account.id, account.value]));
 }
 
@@ -51,13 +61,17 @@ export async function syncBalances(api, name, accounts, remoteBalances) {
   const warnings = [];
 
   for (const { remoteAccount, actualAccount, payeeName } of accounts) {
-    if (!remoteBalances.has(remoteAccount)) {
-      const warning = `${name} account ${remoteAccount} not found`;
+    const balance = remoteBalances.get(remoteAccount);
+    if (!Number.isFinite(balance)) {
+      // A missing or hidden (null) balance would otherwise sync the account to 0.
+      const warning = remoteBalances.has(remoteAccount)
+        ? `${name} returned no balance for account ${remoteAccount}`
+        : `${name} account ${remoteAccount} not found`;
       log.warn(warning);
       warnings.push(warning);
       continue;
     }
-    const remoteBalance = Math.round(remoteBalances.get(remoteAccount) * 100);
+    const remoteBalance = Math.round(balance * 100);
     const difference = remoteBalance - (await api.getAccountBalance(actualAccount));
 
     if (difference === 0) {

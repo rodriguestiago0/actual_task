@@ -503,6 +503,13 @@ describe("syncBalances", () => {
     assert.equal(callsTo(api, "importTransactions").length, 0);
   });
 
+  it("skips an account whose balance is hidden instead of syncing it to 0", async () => {
+    const api = fakeApi({ accounts: open, balances: { A: 12_345 } });
+    const warnings = await syncBalances(api, "Test", accounts, new Map([["w1", null]]));
+    assert.deepEqual(warnings, ["Test returned no balance for account w1"]);
+    assert.equal(callsTo(api, "importTransactions").length, 0);
+  });
+
   it("fails before syncing when an Actual account isn't open", async () => {
     const api = fakeApi({ accounts: [{ id: "A" }, { id: "B", closed: true }] });
     await assert.rejects(
