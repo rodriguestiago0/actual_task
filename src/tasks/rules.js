@@ -354,7 +354,10 @@ async function describer(api) {
     `if ${describe(rule.conditions, rule.conditionsOp)} then ${describe(rule.actions, "and")}`;
 }
 
-/** Merges rules, returning a description of each conflict left alone. */
+/**
+ * Merges rules, returning a description of each conflict left alone and of each rule Actual
+ * didn't delete.
+ */
 export async function mergeRules(api) {
   const { merges, conflicts } = planRuleMerges(await api.getRules());
   const describe = await describer(api);
@@ -369,13 +372,20 @@ export async function mergeRules(api) {
   );
   for (const warning of warnings) log.warn(warning);
 
+  let removed = 0;
   for (const { rule, removeIds } of merges) {
     log.info(`Merge ${removeIds.length + 1} rules into: ${describe(rule)}`);
     await api.updateRule(rule);
-    for (const id of removeIds) await api.deleteRule(id);
+    for (const id of removeIds) {
+      // Actual keeps a rule a schedule uses, returning false. A dry run returns nothing.
+      if ((await api.deleteRule(id)) === false) {
+        const warning = `Actual didn't delete rule ${id} after merging it into: ${describe(rule)}`;
+        log.warn(warning);
+        warnings.push(warning);
+      } else removed++;
+    }
   }
 
-  const removed = merges.reduce((count, { removeIds }) => count + removeIds.length, 0);
   log.info(`Removed ${removed} rules`);
   return warnings;
 }

@@ -35,14 +35,23 @@ export async function fetchGhostfolioBalances(ghostfolio) {
   return new Map(json.accounts.map((account) => [account.id, account.value]));
 }
 
+/**
+ * Returns each account's latest valuation, and a warning when refreshing the valuations failed: the
+ * last known values are used then.
+ */
 export async function fetchWealthfolioBalances({ serverURL }) {
-  // Refresh valuations first; a failure here still lets us use the last known values.
-  await requestJson(`${serverURL}/api/v1/portfolio/update`, { method: "POST" }).catch((err) =>
-    log.warn("Wealthfolio portfolio update failed:", err.message),
-  );
+  const warnings = [];
+  await requestJson(`${serverURL}/api/v1/portfolio/update`, { method: "POST" }).catch((err) => {
+    const warning = `Wealthfolio portfolio update failed, using the last valuations: ${err.message}`;
+    log.warn(warning);
+    warnings.push(warning);
+  });
   const valuations = await requestJson(`${serverURL}/api/v1/valuations/latest`);
   if (!Array.isArray(valuations)) throw new Error("Wealthfolio returned no valuation list");
-  return new Map(valuations.map((valuation) => [valuation.accountId, valuation.totalValue]));
+  const balances = new Map(
+    valuations.map((valuation) => [valuation.accountId, valuation.totalValue]),
+  );
+  return { balances, warnings };
 }
 
 /**

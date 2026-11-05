@@ -24,6 +24,7 @@ jobs:
       # Full history and tags, to find the last release.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
           fetch-tags: true
 
@@ -70,6 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Compute next patch tag
@@ -84,6 +86,7 @@ jobs:
       # workflow change lands on main while CI runs. Say so instead; the next release, or a
       # manual run of this workflow, ships these changes.
       - name: Check main's workflows match the release commit
+        # Anonymous (checkout doesn't keep its token), which works as the repo is public.
         run: |
           git fetch --quiet origin main
           if ! git diff --quiet "$GITHUB_SHA" FETCH_HEAD -- .github/workflows; then

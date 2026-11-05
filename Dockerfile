@@ -1,5 +1,5 @@
-# Versions are written out (not ARGs) so Dependabot can update them, with the digest pinned so a
-# retagged base image can't change a build.
+# Versions are written out (not ARGs) so Dependabot can update them, tag and digest together. The
+# digest pins the exact (multi-platform) image, so a re-pushed tag can't change what is built.
 FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS node-amd64
 FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS node-arm64
 # Node 24 has no 32-bit ARM images, so linux/arm/v7 is built on Node 22 LTS.

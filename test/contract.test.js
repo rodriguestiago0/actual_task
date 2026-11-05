@@ -396,6 +396,33 @@ for (const backend of [fake, real]) {
       ]);
     });
 
+    it("calculateMortgage doesn't merge the principal into a same-amount transaction", async () => {
+      const { api, id } = await backend.budget({
+        accounts: [{ name: "Main" }, { name: "Loan", balance: -12_026_010 }],
+        payees: ["House Loan", "Bank"],
+        transactions: (id) => [
+          { account: id("Main"), date: today, amount: -80_000, payee: id("House Loan") },
+          // Brings the balance to -120,000.00, so the principal is 260.10 too.
+          { account: id("Loan"), date: day(-3), amount: 26_010, payee: id("Bank") },
+        ],
+      });
+      const mortgage = {
+        payeeId: id("House Loan"),
+        payeeName: "House Loan",
+        mortgageAccountId: id("Loan"),
+        mainAccountId: id("Main"),
+        interestRate: 5399,
+      };
+      await calculateMortgage(api, mortgage);
+      await calculateMortgage(api, mortgage);
+      assert.deepEqual(await (await view(api)).transactions(id("Loan")), [
+        { date: day(-3), amount: 26_010, payee: "Bank" },
+        { date: today, amount: 26_010, payee: "House Loan" },
+      ]);
+      const [bank] = (await api.getTransactions(id("Loan"))).filter((t) => t.date === day(-3));
+      assert.equal(bank.imported_payee ?? null, null);
+    });
+
     it("calculateMortgage ignores payments older than a month", async () => {
       const { api, id } = await backend.budget({
         accounts: [{ name: "Main" }, { name: "Loan", balance: -12_000_000 }],

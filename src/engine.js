@@ -70,13 +70,15 @@ export const tasks = {
   "wealthfolio-sync": {
     enabled: (config) => config.wealthfolio,
     run: async (config) => {
-      const balances = await fetchWealthfolioBalances(config.wealthfolio);
-      const warnings = await withBudget(config.actual, (api) =>
-        syncBalances(api, "Wealthfolio", config.wealthfolio.accounts, balances, {
-          allowZero: config.wealthfolio.allowZeroBalance,
-        }),
+      const { balances, warnings } = await fetchWealthfolioBalances(config.wealthfolio);
+      warnings.push(
+        ...(await withBudget(config.actual, (api) =>
+          syncBalances(api, "Wealthfolio", config.wealthfolio.accounts, balances, {
+            allowZero: config.wealthfolio.allowZeroBalance,
+          }),
+        )),
       );
-      return summarize(warnings, "accounts");
+      return summarize(warnings, "warnings");
     },
   },
 };

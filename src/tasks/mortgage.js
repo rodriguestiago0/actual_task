@@ -52,7 +52,12 @@ export async function calculateMortgage(
     return warning;
   }
   log.info(`Recording principal of ${amount / 100} for payment on ${lastPayment.date}`);
-  await importTransactions(api, mortgageAccountId, [
-    { date: formatDate(), amount, payee_name: payeeName },
-  ]);
+  // Forced, so Actual doesn't merge it into another transaction with the same amount, and with
+  // the payee name kept as written instead of title-cased (as syncBalances does).
+  await importTransactions(
+    api,
+    mortgageAccountId,
+    [{ date: formatDate(), amount, payee_name: payeeName, forceAddTransaction: true }],
+    { payeeNameNormalization: "original" },
+  );
 }

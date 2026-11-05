@@ -72,6 +72,36 @@ describe("fetchGhostfolioBalances", () => {
   });
 });
 
+describe("fetchWealthfolioBalances", () => {
+  const valuations = [{ accountId: "w", totalValue: 7.5 }];
+
+  it("refreshes the valuations, then returns them", async (t) => {
+    const fetch = mockFetch(t, new Response(""), Response.json(valuations));
+    const { balances, warnings } = await fetchWealthfolioBalances({ serverURL: "https://wf" });
+    assert.deepEqual([...balances], [["w", 7.5]]);
+    assert.deepEqual(warnings, []);
+    assert.deepEqual(
+      fetch.mock.calls.map((c) => [c.arguments[1].method, c.arguments[0]]),
+      [
+        ["POST", "https://wf/api/v1/portfolio/update"],
+        ["GET", "https://wf/api/v1/valuations/latest"],
+      ],
+    );
+  });
+
+  it("returns a warning when the refresh fails, and the last valuations", async (t) => {
+    const warn = mock.method(log, "warn", () => {});
+    t.after(() => warn.mock.restore());
+    mockFetch(t, new Response("busy", { status: 503 }), Response.json(valuations));
+    const { balances, warnings } = await fetchWealthfolioBalances({ serverURL: "https://wf" });
+    assert.equal(balances.get("w"), 7.5);
+    assert.deepEqual(warnings, [
+      "Wealthfolio portfolio update failed, using the last valuations: " +
+        "POST /api/v1/portfolio/update failed: 503",
+    ]);
+  });
+});
+
 describe("unexpected responses", () => {
   it("fails clearly when Ghostfolio returns no account list", async (t) => {
     mockFetch(t, new Response(""));

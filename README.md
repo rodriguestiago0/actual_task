@@ -211,15 +211,17 @@ before the process exits, and the tasks left in its batch are skipped. Schedules
 zone (`TZ`).
 
 When Actual's server can't be reached while opening the budget, the run retries twice, after 10
-and 30 seconds. A task still running after `TASK_TIMEOUT_MINUTES` (default 30, `0` turns it off)
+and 30 seconds. Ghostfolio and Wealthfolio reads are retried after 1 and 5 seconds on a network
+error, a timeout or a 5xx answer. A task still running after `TASK_TIMEOUT_MINUTES` (default 30, `0` turns it off)
 is logged and notified; it isn't stopped, as the Actual API holds one budget for the whole process,
 so the next tasks wait for it.
 
 ## Notifications
 
 When a task run by the scheduler fails, you get a message (again only when the error changes), and
-another one the next time it succeeds. You also get merge-rules' conflicts and Ghostfolio/Wealthfolio accounts that weren't
-found, had no balance or dropped to 0, once until they change; when there are too many for one message, the rest are counted and
+another one the next time it succeeds. You also get merge-rules' conflicts and rules Actual didn't delete, a failed Wealthfolio
+valuation refresh, and Ghostfolio/Wealthfolio accounts that weren't found, had no balance or
+dropped to 0, once until they change; when there are too many for one message, the rest are counted and
 left in the logs. Runs started from the command line don't
 send notifications.
 
