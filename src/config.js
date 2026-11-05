@@ -138,8 +138,13 @@ export function loadConfig(env = process.env) {
     ruleMerge: stringToBoolean(env.ENABLE_RULE_MERGE),
     ghostfolio: null,
     wealthfolio: null,
-    bankSync: stringToBoolean(env.ENABLE_BANK_SYNC),
   };
+
+  if (stringToBoolean(env.ENABLE_BANK_SYNC)) {
+    log.warn(
+      "Ignoring ENABLE_BANK_SYNC: the bank-sync task was removed; use Actual's own bank sync",
+    );
+  }
 
   if (stringToBoolean(env.ENABLE_INTEREST_CALCULATION)) {
     requireEnv(env, [

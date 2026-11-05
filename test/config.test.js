@@ -80,11 +80,17 @@ describe("loadConfig", () => {
     assert.throws(() => loadConfig({}), /ACTUAL_SERVER_URL, ACTUAL_SERVER_PASSWORD/);
   });
 
+  it("warns that ENABLE_BANK_SYNC is no longer used", (t) => {
+    const warn = mock.method(log, "warn", () => {});
+    t.after(() => warn.mock.restore());
+    loadConfig({ ...base, ENABLE_BANK_SYNC: "true" });
+    assert.match(warn.mock.calls[0].arguments[0], /Ignoring ENABLE_BANK_SYNC/);
+  });
+
   it("leaves disabled tasks unset and applies defaults", () => {
     const config = loadConfig(base);
     assert.equal(config.mortgage, null);
     assert.equal(config.wealthfolio, null);
-    assert.equal(config.bankSync, false);
     assert.equal(config.cronExpression, "0 */4 * * *");
   });
 

@@ -46,7 +46,6 @@ services:
       - WEALTHFOLIO_ACTUAL_ACCOUNT=
       - WEALTHFOLIO_ACTUAL_PAYEE_NAME=
       # More Ghostfolio/Wealthfolio accounts: add the three account variables with _1, _2, ...
-      - ENABLE_BANK_SYNC=false
     restart: unless-stopped
     stop_grace_period: 2m # lets a running task finish on docker stop
 ```
@@ -75,7 +74,7 @@ healthcheck:
 Run a single task once in the running container:
 
 ```bash
-docker exec actual-tasks node index.js bank-sync
+docker exec actual-tasks node index.js merge-rules
 ```
 
 Add `--dry-run` to see what a task would change without saving anything:
