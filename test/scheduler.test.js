@@ -19,12 +19,12 @@ describe("scheduleGroups", () => {
     const groups = scheduleGroups(config({ "fix-payees": "*/5 * * * *" }), [
       "calculate-mortgage",
       "fix-payees",
-      "bank-sync",
+      "merge-rules",
     ]);
     assert.deepEqual(
       [...groups],
       [
-        ["0 */4 * * *", ["calculate-mortgage", "bank-sync"]],
+        ["0 */4 * * *", ["calculate-mortgage", "merge-rules"]],
         ["*/5 * * * *", ["fix-payees"]],
       ],
     );
@@ -32,7 +32,7 @@ describe("scheduleGroups", () => {
 
   it("rejects an invalid cron expression", () => {
     assert.throws(
-      () => scheduleGroups(config({ "bank-sync": "every day" }), ["bank-sync"]),
+      () => scheduleGroups(config({ "merge-rules": "every day" }), ["merge-rules"]),
       /Invalid cron expression: "every day"/,
     );
   });
@@ -41,7 +41,7 @@ describe("scheduleGroups", () => {
 describe("unknownCronVariables", () => {
   it("names the variables that match no task", () => {
     const names = unknownCronVariables(
-      config({ "fix-payee": "* * * * *", "bank-sync": "* * * * *" }),
+      config({ "fix-payee": "* * * * *", "merge-rules": "* * * * *" }),
     );
     assert.deepEqual(names, ["FIX_PAYEE_CRON"]);
   });
@@ -66,8 +66,8 @@ describe("index-cron.js", () => {
             ACTUAL_SERVER_URL: "http://localhost:1",
             ACTUAL_SERVER_PASSWORD: "p",
             ACTUAL_SYNC_ID: "s",
-            ENABLE_BANK_SYNC: "true",
-            BANK_SYNC_CRON: "0 0 1 1 *",
+            ENABLE_RULE_MERGE: "true",
+            MERGE_RULES_CRON: "0 0 1 1 *",
             FIX_PAYEE_CRON: "* * * * *",
           },
         },
@@ -82,7 +82,7 @@ describe("index-cron.js", () => {
 
       assert.equal(code, 0);
       assert.match(output, /WARN Ignoring FIX_PAYEE_CRON: no task with that name/);
-      assert.match(output, /INFO Scheduled bank-sync \(0 0 1 1 \*\)/);
+      assert.match(output, /INFO Scheduled merge-rules \(0 0 1 1 \*\)/);
       assert.match(output, /INFO Received SIGTERM, stopping/);
     },
   );
@@ -150,13 +150,12 @@ describe("index-cron.js configuration errors", () => {
 });
 
 describe("enabledTaskNames", () => {
-  it("runs bank sync before the tasks that read its transactions", () => {
+  it("runs the enabled tasks in a fixed order", () => {
     const names = enabledTaskNames({
-      bankSync: true,
       mortgage: {},
       payeeRename: {},
       ruleMerge: true,
     });
-    assert.deepEqual(names, ["bank-sync", "calculate-mortgage", "fix-payees", "merge-rules"]);
+    assert.deepEqual(names, ["calculate-mortgage", "fix-payees", "merge-rules"]);
   });
 });

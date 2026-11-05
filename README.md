@@ -48,15 +48,13 @@ made), so a task that fails halfway keeps the changes it made before the error.
 
 | Command              | Enabled by                    |
 | -------------------- | ----------------------------- |
-| `bank-sync`          | `ENABLE_BANK_SYNC`            |
 | `calculate-mortgage` | `ENABLE_INTEREST_CALCULATION` |
 | `fix-payees`         | `ENABLE_PAYEE_RENAME`         |
 | `merge-rules`        | `ENABLE_RULE_MERGE`           |
 | `ghostfolio-sync`    | `ENABLE_GHOSTFOLIO_SYNC`      |
 | `wealthfolio-sync`   | `ENABLE_WEALTHFOLIO_SYNC`     |
 
-Tasks on the same schedule run in this order, so bank sync imports new transactions before the
-mortgage, payee and rule tasks look at them.
+Tasks on the same schedule run in this order.
 
 Account IDs are in the app's URL when you open an account (`/accounts/<ID>`). A task fails before
 changing anything when one of its account IDs isn't an open account in the budget. Actual doesn't
@@ -187,12 +185,6 @@ The older `GHOSTFOLIO_TOKEN`, a bearer token you got from that endpoint yourself
 `GHOSTFOLIO_ACCESS_TOKEN` isn't set, but it expires after 180 days, after which the sync fails
 with a 401 error. Replace it with `GHOSTFOLIO_ACCESS_TOKEN`.
 
-### Bank sync
-
-Runs Actual's bank sync for all linked accounts (GoCardless, SimpleFIN, ...), as if you clicked
-**Bank Sync** in the app. Accounts must already be linked in Actual. It logs how many transactions
-it added and matched; when several accounts fail, Actual reports only the first error.
-
 ## Scheduling
 
 `npm start` runs all enabled tasks on `CRON_EXPRESSION`, which defaults to `0 */4 * * *` (every 4
@@ -200,8 +192,7 @@ hours, standard 5-field cron syntax; a 6th leading field sets seconds, so `* * *
 second). To give one task its own schedule, set a variable named after
 its command in upper case with `_CRON` appended:
 
-`CALCULATE_MORTGAGE_CRON`, `FIX_PAYEES_CRON`, `MERGE_RULES_CRON`, `GHOSTFOLIO_SYNC_CRON`, `WEALTHFOLIO_SYNC_CRON`,
-`BANK_SYNC_CRON`
+`CALCULATE_MORTGAGE_CRON`, `FIX_PAYEES_CRON`, `MERGE_RULES_CRON`, `GHOSTFOLIO_SYNC_CRON`, `WEALTHFOLIO_SYNC_CRON`
 
 `npm start` exits with status 1 when the configuration is invalid or no task is enabled, after
 sending the error as a notification when `NOTIFICATION_URL` is valid (once until the error changes,

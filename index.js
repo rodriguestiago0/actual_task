@@ -14,7 +14,6 @@ const USAGE = `
     calculate-mortgage   Record the principal part of the last mortgage payment
     ghostfolio-sync      Sync Ghostfolio account balances into Actual
     wealthfolio-sync     Sync Wealthfolio account balances into Actual
-    bank-sync            Run Actual bank sync
 
   Options
     -n, --dry-run        Run the task without saving any change to the budget

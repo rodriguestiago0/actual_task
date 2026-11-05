@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 import { runTasks, truncate } from "../src/engine.js";
 import { describeError, log } from "../src/log.js";
 import { notify, parseNotificationUrls } from "../src/notify.js";
-import { bankSync } from "../src/tasks/bank.js";
 
 describe("describeError", () => {
   it("adds the error's code, or its cause's, unless the message has it", () => {
@@ -61,23 +60,6 @@ describe("failure details", () => {
     assert.ok(content.length < 2000);
     assert.equal(content, `❌ actual-tasks: long failed\n${truncate("x".repeat(5000))}`);
     assert.match(content, /… \(see the logs\)$/);
-  });
-
-  it("logs what bank sync found", async (t) => {
-    const info = mock.method(log, "info", () => {});
-    t.after(() => info.mock.restore());
-    await bankSync({
-      runBankSync: async () => ({
-        newTransactions: ["a", "b"],
-        matchedTransactions: ["c"],
-        updatedAccounts: ["x"],
-      }),
-    });
-    await bankSync({ runBankSync: async () => undefined });
-    assert.deepEqual(
-      info.mock.calls.map((call) => call.arguments[0]),
-      ["Bank sync: 2 new and 1 matched transactions, 1 accounts updated"],
-    );
   });
 
   it("the CLI reports an unknown option without a stack trace", { timeout: 10_000 }, async () => {

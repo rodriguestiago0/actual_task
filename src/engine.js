@@ -2,7 +2,6 @@ import cron from "node-cron";
 import { withBudget } from "./actual.js";
 import { describeError, log } from "./log.js";
 import { notify } from "./notify.js";
-import { bankSync } from "./tasks/bank.js";
 import { calculateMortgage } from "./tasks/mortgage.js";
 import { fixPayees } from "./tasks/payees.js";
 import {
@@ -34,15 +33,10 @@ export function summarize(items, noun) {
 }
 
 /**
- * Tasks in the order they run when scheduled together: bank sync first, so the other tasks see the
- * transactions it imports. Each is enabled when its config is set, and run may resolve to a
- * warning for the scheduler to notify about.
+ * Tasks in the order they run when scheduled together. Each is enabled when its config is set, and
+ * run may resolve to a warning for the scheduler to notify about.
  */
 export const tasks = {
-  "bank-sync": {
-    enabled: (config) => config.bankSync,
-    run: (config) => withBudget(config.actual, bankSync),
-  },
   "calculate-mortgage": {
     enabled: (config) => config.mortgage,
     run: (config) => withBudget(config.actual, (api) => calculateMortgage(api, config.mortgage)),
