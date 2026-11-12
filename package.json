@@ -20,7 +20,7 @@
   "dependencies": {
     "@actual-app/api": "^26.11.0",
     "node-cron": "^4.6.0",
-    "nodemailer": "^10.3.1"
+    "nodemailer": "^10.4.0"
   },
   "allowScripts": {
     "better-sqlite3": false
@@ -32,7 +32,7 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.13.0",
+    "globals": "^17.14.0",
     "prettier": "^3.9.10"
   },
   "overrides": {
